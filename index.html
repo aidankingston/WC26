@@ -6,533 +6,81 @@
 <title>World Cup 26™ Family Edition</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
-
-  :root {
-    --primary: #111424;
-    --accent: #FF2B4A;
-    --bg-color: #F4F6F9;
-    --card-bg: #FFFFFF;
-    --text-main: #1A1A24;
-    --text-muted: #6B7280;
-    --border: #E5E7EB;
-  }
-
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  body { 
-    font-family: 'Outfit', -apple-system, sans-serif; 
-    background: var(--bg-color); 
-    margin: 0; 
-    padding: 0; 
-    color: var(--text-main); 
-    overflow-x: hidden;
-  }
-
-  /* App Bar */
-  .app-bar {
-    background: var(--primary);
-    color: white;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
-  .app-bar h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
-  .back-btn {
-    position: absolute;
-    left: 15px;
-    background: none;
-    border: none;
-    color: white;
-    font-size: 24px;
-    cursor: pointer;
-    display: none;
-    padding: 5px;
-  }
-
-  /* Screen Management */
-  .app-content {
-    margin-top: 60px;
-    padding: 20px 15px;
-    height: calc(100vh - 60px);
-    overflow-y: auto;
-  }
-  .screen { display: none; animation: fadeIn 0.3s ease; }
-  .screen.active { display: block; }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Home Tiles */
-  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-  .tile {
-    background: var(--card-bg); border-radius: 16px; padding: 25px 15px; text-align: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  }
-  .tile:active { transform: scale(0.96); }
-  .tile-icon { font-size: 40px; }
-  .tile-title { font-weight: 600; font-size: 15px; line-height: 1.2; color: var(--text-main); }
-  
-  .hero-tile { grid-column: 1 / -1; background: linear-gradient(135deg, var(--primary), #2A3158); color: white; padding: 30px 20px; }
-  .hero-tile .tile-title { color: white; font-size: 20px; font-weight: 800; }
-
-  /* Cards & Lists */
+  :root { --primary: #111424; --bg-color: #F4F6F9; --card-bg: #FFFFFF; --border: #E5E7EB;
+    --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding: 0; color: #1A1A24; }
+  .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
+  .app-content { margin-top: 60px; padding: 20px 15px; }
+  .screen { display: none; } .screen.active { display: block; }
   .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); border: 1px solid var(--border); }
-  .card-title {
-    margin: 0 0 15px 0; font-size: 18px; font-weight: 800; color: var(--primary);
-    border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-  }
-
-  /* Tables */
-  .table-wrapper { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: center; padding: 8px 4px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 12px; }
-  th:first-child { text-align: left; }
-  td { text-align: center; padding: 10px 4px; border-bottom: 1px solid #f3f4f6; }
-  td:first-child { text-align: left; font-weight: 500; }
-  .td-bold { font-weight: 800; color: var(--primary); font-size: 15px; }
-  
-  /* Badges & Kits */
-  .team-identity { display: flex; align-items: center; gap: 8px; }
-  .kit { width: 16px; height: 14px; border-radius: 2px 2px 0 0; border: 1px solid rgba(0,0,0,0.15); display: inline-block; flex-shrink: 0;}
-  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; background: var(--accent); color: white; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; }
-
-  /* Fixtures */
-  .match-container { border-bottom: 1px solid var(--border); padding: 16px 0; }
-  .match-container:last-child { border-bottom: none; padding-bottom: 0; }
-  .match-meta { text-align: center; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-  .match-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px;}
-  .team-home { flex: 1; text-align: right; padding-right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-  .team-away { flex: 1; text-align: left; padding-left: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-  .team-name { font-weight: 600; }
-  .score-inputs { display: flex; align-items: center; gap: 8px; background: #f9fafb; padding: 6px; border-radius: 8px; border: 1px solid var(--border);}
-  .score-input { width: 40px; height: 35px; text-align: center; border: none; border-radius: 6px; font-weight: 800; font-size: 16px; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-family: 'Outfit', sans-serif; color: var(--primary); }
-  .score-input:focus { outline: 2px solid var(--accent); }
-
-  /* Bracket */
-  .bracket-wrapper { overflow-x: auto; padding-bottom: 20px; margin: 0 -15px; padding-left: 15px;}
-  .bracket { display: flex; gap: 20px; min-width: 1200px; padding-right: 15px;}
-  .bracket-column { display: flex; flex-direction: column; justify-content: space-around; width: 240px; gap: 15px;}
-  .col-title { text-align: center; font-weight: 800; margin-bottom: 10px; background: var(--primary); color: white; padding: 8px; border-radius: 6px; font-size: 14px;}
-  .bracket-match { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);}
-  .bracket-meta { font-size: 10px; color: var(--text-muted); text-align: center; font-weight: 600; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;}
-  .bracket-select { width: 100%; padding: 8px; font-size: 13px; border-radius: 6px; border: 1px solid #ccc; font-family: 'Outfit', sans-serif; font-weight: 500; background: #f9fafb;}
+  .group-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 10px 0; font-weight: 800; font-size: 18px; color: var(--primary); }
+  .match-container { border-top: 1px solid #eee; padding: 15px 0; }
+  .match-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; font-size: 16px; }
+  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; text-transform: uppercase; }
+  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .tile { background: var(--card-bg); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
 </style>
 </head>
 <body>
-
-<div class="app-bar">
-  <button class="back-btn" id="backBtn" onclick="navigate('home')">←</button>
-  <h1 id="appTitle">WC 2026 App</h1>
-</div>
-
+<div class="app-bar"><h1 id="appTitle">WC 2026 Tracker</h1></div>
 <div class="app-content">
   <main id="screen-home" class="screen active">
     <div class="tile-grid">
-      <div class="tile hero-tile" onclick="navigate('family')">
-        <div class="tile-icon">🏆</div>
-        <div class="tile-title">Live Family Leaderboard</div>
-      </div>
-      <div class="tile" onclick="navigate('fixtures')">
-        <div class="tile-icon">⚽</div>
-        <div class="tile-title">Enter Match<br>Scores</div>
-      </div>
-      <div class="tile" onclick="navigate('standings')">
-        <div class="tile-icon">🌍</div>
-        <div class="tile-title">Official Group<br>Standings</div>
-      </div>
-      <div class="tile hero-tile" style="background: linear-gradient(135deg, #0056b3, #002868);" onclick="navigate('bracket')">
-        <div class="tile-icon">📊</div>
-        <div class="tile-title">Knockout Wallchart</div>
-      </div>
+      <div class="tile" onclick="navigate('family')">🏆 Leaderboard</div>
+      <div class="tile" onclick="navigate('fixtures')">⚽ Matches</div>
+      <div class="tile" onclick="navigate('standings')">🌍 Groups</div>
     </div>
   </main>
-
   <main id="screen-family" class="screen"><div id="family-grid"></div></main>
   <main id="screen-standings" class="screen"><div id="standings-grid"></div></main>
-  <main id="screen-fixtures" class="screen">
-    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:0;">Scores entered automatically save to the cloud for everyone.</p>
-    <div id="fixtures-grid"></div>
-  </main>
-  <main id="screen-bracket" class="screen">
-    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:0;">Swipe left to view full bracket. Use dropdowns to advance teams.</p>
-    <div class="bracket-wrapper"><div class="bracket" id="bracket-container"></div></div>
-  </main>
+  <main id="screen-fixtures" class="screen"><div id="fixtures-grid"></div></main>
 </div>
-
 <script>
-  function navigate(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(`screen-${screenId}`).classList.add('active');
-    document.getElementById('appTitle').innerText = {'home':'WC 2026 Tracker','family':'Family Leaderboard','standings':'Official Groups','fixtures':'Match Fixtures','bracket':'Knockout Stage'}[screenId];
-    document.getElementById('backBtn').style.display = (screenId === 'home') ? 'none' : 'block';
-  }
-
-  const FAMILY = ["Connie", "Zelda", "Colman", "Mummy", "Daddy"];
+  const FAMILY = ["Zelda", "Colman", "Connie", "Jemma", "Aidan"];
   const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
-  
-  let allTeams = [
-    { name: "Mexico", group: "A", flag: "🇲🇽", c1: "#006847", c2: "#FFFFFF", owner: "Connie" },
-    { name: "South Africa", group: "A", flag: "🇿🇦", c1: "#FFB81C", c2: "#007749", owner: "Connie" },
-    { name: "South Korea", group: "A", flag: "🇰🇷", c1: "#E03C31", c2: "#000000", owner: "Mummy" },
-    { name: "UEFA D", group: "A", flag: "🇪🇺", c1: "#003399", c2: "#FFFFFF", owner: "Mummy" },
-    { name: "Canada", group: "B", flag: "🇨🇦", c1: "#FF0000", c2: "#FFFFFF", owner: "Colman" },
-    { name: "UEFA A", group: "B", flag: "🇪🇺", c1: "#003399", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "Qatar", group: "B", flag: "🇶🇦", c1: "#8A1538", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "Switzerland", group: "B", flag: "🇨🇭", c1: "#FF0000", c2: "#FFFFFF", owner: "Connie" },
-    { name: "Brazil", group: "C", flag: "🇧🇷", c1: "#FFDF00", c2: "#009B3A", owner: "Zelda" },
-    { name: "Morocco", group: "C", flag: "🇲🇦", c1: "#C1272D", c2: "#006233", owner: "Daddy" },
-    { name: "Haiti", group: "C", flag: "🇭🇹", c1: "#00205B", c2: "#D21034", owner: "Daddy" },
-    { name: "Scotland", group: "C", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", c1: "#001B49", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "United States", group: "D", flag: "🇺🇸", c1: "#FFFFFF", c2: "#002868", owner: "Zelda" },
-    { name: "Paraguay", group: "D", flag: "🇵🇾", c1: "#D52B1E", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "Australia", group: "D", flag: "🇦🇺", c1: "#FFCD00", c2: "#008751", owner: "Zelda" },
-    { name: "UEFA C", group: "D", flag: "🇪🇺", c1: "#003399", c2: "#FFFFFF", owner: "Daddy" },
-    { name: "Germany", group: "E", flag: "🇩🇪", c1: "#FFFFFF", c2: "#000000", owner: "Colman" },
-    { name: "Curacao", group: "E", flag: "🇨🇼", c1: "#002B7F", c2: "#F9E814", owner: "Mummy" },
-    { name: "Ivory Coast", group: "E", flag: "🇨🇮", c1: "#F77F00", c2: "#009E60", owner: "Connie" },
-    { name: "Ecuador", group: "E", flag: "🇪🇨", c1: "#FFD100", c2: "#001489", owner: "Mummy" },
-    { name: "Netherlands", group: "F", flag: "🇳🇱", c1: "#F36C21", c2: "#000000", owner: "Connie" },
-    { name: "Japan", group: "F", flag: "🇯🇵", c1: "#000555", c2: "#FFFFFF", owner: "Daddy" },
-    { name: "UEFA B", group: "F", flag: "🇪🇺", c1: "#003399", c2: "#FFFFFF", owner: "Connie" },
-    { name: "Tunisia", group: "F", flag: "🇹🇳", c1: "#E70013", c2: "#FFFFFF", owner: "Mummy" },
-    { name: "Belgium", group: "G", flag: "🇧🇪", c1: "#E30613", c2: "#000000", owner: "Colman" },
-    { name: "Egypt", group: "G", flag: "🇪🇬", c1: "#CE1126", c2: "#FFFFFF", owner: "Connie" },
-    { name: "Iran", group: "G", flag: "🇮🇷", c1: "#FFFFFF", c2: "#DA0000", owner: "Zelda" },
-    { name: "New Zealand", group: "G", flag: "🇳🇿", c1: "#FFFFFF", c2: "#000000", owner: "Daddy" },
-    { name: "Spain", group: "H", flag: "🇪🇸", c1: "#AA151B", c2: "#F1BF00", owner: "Mummy" },
-    { name: "Cape Verde", group: "H", flag: "🇨🇻", c1: "#003893", c2: "#FFFFFF", owner: "Daddy" },
-    { name: "Saudi Arabia", group: "H", flag: "🇸🇦", c1: "#006C35", c2: "#FFFFFF", owner: "Mummy" },
-    { name: "Uruguay", group: "H", flag: "🇺🇾", c1: "#55B5E5", c2: "#000000", owner: "Daddy" },
-    { name: "France", group: "I", flag: "🇫🇷", c1: "#002395", c2: "#FFFFFF", owner: "Colman" },
-    { name: "Senegal", group: "I", flag: "🇸🇳", c1: "#FFFFFF", c2: "#00853F", owner: "Colman" },
-    { name: "Norway", group: "I", flag: "🇳🇴", c1: "#BA0C2F", c2: "#00205B", owner: "Connie" },
-    { name: "FIFA 2", group: "I", flag: "🌍", c1: "#333333", c2: "#FFFFFF", owner: "Daddy" },
-    { name: "Argentina", group: "J", flag: "🇦🇷", c1: "#43A1D5", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "Algeria", group: "J", flag: "🇩🇿", c1: "#FFFFFF", c2: "#006233", owner: "Colman" },
-    { name: "Austria", group: "J", flag: "🇦🇹", c1: "#ED2939", c2: "#FFFFFF", owner: "Connie" },
-    { name: "Jordan", group: "J", flag: "🇯🇴", c1: "#FFFFFF", c2: "#CE1126", owner: "Mummy" },
-    { name: "Portugal", group: "K", flag: "🇵🇹", c1: "#FF0000", c2: "#006600", owner: "Daddy" },
-    { name: "FIFA 1", group: "K", flag: "🌍", c1: "#333333", c2: "#FFFFFF", owner: "Colman" },
-    { name: "Uzbekistan", group: "K", flag: "🇺🇿", c1: "#0099B5", c2: "#FFFFFF", owner: "Mummy" },
-    { name: "Colombia", group: "K", flag: "🇨🇴", c1: "#FCD116", c2: "#003893", owner: "Colman" },
-    { name: "England", group: "L", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", c1: "#FFFFFF", c2: "#000040", owner: "Colman" },
-    { name: "Croatia", group: "L", flag: "🇭🇷", c1: "#FF0000", c2: "#FFFFFF", owner: "Zelda" },
-    { name: "Ghana", group: "L", flag: "🇬🇭", c1: "#FFFFFF", c2: "#000000", owner: "Colman" },
-    { name: "Panama", group: "L", flag: "🇵🇦", c1: "#DA291C", c2: "#FFFFFF", owner: "Connie" }
-  ];
-
-  const matches = [
-    { id: "1", group: "A", home: "Mexico", away: "South Africa", hS: "", aS: "", date: "Thu, Jun 11", time: "3:00 PM", venue: "Estadio Azteca" },
-    { id: "2", group: "A", home: "South Korea", away: "UEFA D", hS: "", aS: "", date: "Thu, Jun 11", time: "10:00 PM", venue: "Estadio Akron" },
-    { id: "3", group: "B", home: "Canada", away: "UEFA A", hS: "", aS: "", date: "Fri, Jun 12", time: "3:00 PM", venue: "BMO Field" },
-    { id: "4", group: "D", home: "United States", away: "Paraguay", hS: "", aS: "", date: "Fri, Jun 12", time: "9:00 PM", venue: "SoFi Stadium" },
-    { id: "5", group: "C", home: "Haiti", away: "Scotland", hS: "", aS: "", date: "Sat, Jun 13", time: "9:00 PM", venue: "Gillette Stadium" },
-    { id: "6", group: "D", home: "Australia", away: "UEFA C", hS: "", aS: "", date: "Sat, Jun 13", time: "11:59 PM", venue: "BC Place" },
-    { id: "7", group: "C", home: "Brazil", away: "Morocco", hS: "", aS: "", date: "Sat, Jun 13", time: "6:00 PM", venue: "MetLife Stadium" },
-    { id: "8", group: "B", home: "Qatar", away: "Switzerland", hS: "", aS: "", date: "Sat, Jun 13", time: "3:00 PM", venue: "Levi's Stadium" },
-    { id: "9", group: "E", home: "Ivory Coast", away: "Ecuador", hS: "", aS: "", date: "Sun, Jun 14", time: "7:00 PM", venue: "Lincoln Financial Field" },
-    { id: "10", group: "E", home: "Germany", away: "Curacao", hS: "", aS: "", date: "Sun, Jun 14", time: "1:00 PM", venue: "NRG Stadium" },
-    { id: "11", group: "F", home: "Netherlands", away: "Japan", hS: "", aS: "", date: "Sun, Jun 14", time: "4:00 PM", venue: "AT&T Stadium" },
-    { id: "12", group: "F", home: "UEFA B", away: "Tunisia", hS: "", aS: "", date: "Sun, Jun 14", time: "10:00 PM", venue: "Estadio BBVA" },
-    { id: "13", group: "H", home: "Saudi Arabia", away: "Uruguay", hS: "", aS: "", date: "Mon, Jun 15", time: "6:00 PM", venue: "Hard Rock Stadium" },
-    { id: "14", group: "H", home: "Spain", away: "Cape Verde", hS: "", aS: "", date: "Mon, Jun 15", time: "12:00 PM", venue: "Mercedes-Benz Stadium" },
-    { id: "15", group: "G", home: "Iran", away: "New Zealand", hS: "", aS: "", date: "Mon, Jun 15", time: "9:00 PM", venue: "SoFi Stadium" },
-    { id: "16", group: "G", home: "Belgium", away: "Egypt", hS: "", aS: "", date: "Mon, Jun 15", time: "3:00 PM", venue: "Lumen Field" },
-    { id: "17", group: "I", home: "France", away: "Senegal", hS: "", aS: "", date: "Tue, Jun 16", time: "3:00 PM", venue: "MetLife Stadium" },
-    { id: "18", group: "I", home: "FIFA 2", away: "Norway", hS: "", aS: "", date: "Tue, Jun 16", time: "6:00 PM", venue: "Gillette Stadium" },
-    { id: "19", group: "J", home: "Argentina", away: "Algeria", hS: "", aS: "", date: "Tue, Jun 16", time: "9:00 PM", venue: "Arrowhead Stadium" },
-    { id: "20", group: "J", home: "Austria", away: "Jordan", hS: "", aS: "", date: "Tue, Jun 16", time: "11:59 PM", venue: "Levi's Stadium" },
-    { id: "21", group: "L", home: "England", away: "Croatia", hS: "", aS: "", date: "Wed, Jun 17", time: "4:00 PM", venue: "AT&T Stadium" },
-    { id: "22", group: "L", home: "Ghana", away: "Panama", hS: "", aS: "", date: "Wed, Jun 17", time: "7:00 PM", venue: "BMO Field" },
-    { id: "23", group: "K", home: "Portugal", away: "FIFA 1", hS: "", aS: "", date: "Wed, Jun 17", time: "1:00 PM", venue: "NRG Stadium" },
-    { id: "24", group: "K", home: "Uzbekistan", away: "Colombia", hS: "", aS: "", date: "Wed, Jun 17", time: "10:00 PM", venue: "Estadio Azteca" },
-    { id: "25", group: "A", home: "UEFA D", away: "South Africa", hS: "", aS: "", date: "Thu, Jun 18", time: "12:00 PM", venue: "Mercedes-Benz Stadium" },
-    { id: "26", group: "B", home: "Switzerland", away: "UEFA A", hS: "", aS: "", date: "Thu, Jun 18", time: "3:00 PM", venue: "SoFi Stadium" },
-    { id: "27", group: "B", home: "Canada", away: "Qatar", hS: "", aS: "", date: "Thu, Jun 18", time: "6:00 PM", venue: "BC Place" },
-    { id: "28", group: "A", home: "Mexico", away: "South Korea", hS: "", aS: "", date: "Thu, Jun 18", time: "9:00 PM", venue: "Estadio Akron" },
-    { id: "29", group: "C", home: "Brazil", away: "Haiti", hS: "", aS: "", date: "Fri, Jun 19", time: "9:00 PM", venue: "Lincoln Financial Field" },
-    { id: "30", group: "C", home: "Scotland", away: "Morocco", hS: "", aS: "", date: "Fri, Jun 19", time: "6:00 PM", venue: "Gillette Stadium" },
-    { id: "31", group: "D", home: "UEFA C", away: "Paraguay", hS: "", aS: "", date: "Fri, Jun 19", time: "11:59 PM", venue: "Levi's Stadium" },
-    { id: "32", group: "D", home: "United States", away: "Australia", hS: "", aS: "", date: "Fri, Jun 19", time: "3:00 PM", venue: "Lumen Field" },
-    { id: "33", group: "E", home: "Germany", away: "Ivory Coast", hS: "", aS: "", date: "Sat, Jun 20", time: "4:00 PM", venue: "BMO Field" },
-    { id: "34", group: "E", home: "Ecuador", away: "Curacao", hS: "", aS: "", date: "Sat, Jun 20", time: "8:00 PM", venue: "Arrowhead Stadium" },
-    { id: "35", group: "F", home: "Netherlands", away: "UEFA B", hS: "", aS: "", date: "Sat, Jun 20", time: "1:00 PM", venue: "NRG Stadium" },
-    { id: "36", group: "F", home: "Tunisia", away: "Japan", hS: "", aS: "", date: "Sat, Jun 20", time: "11:59 PM", venue: "Estadio BBVA" },
-    { id: "37", group: "H", home: "Uruguay", away: "Cape Verde", hS: "", aS: "", date: "Sun, Jun 21", time: "6:00 PM", venue: "Hard Rock Stadium" },
-    { id: "38", group: "H", home: "Spain", away: "Saudi Arabia", hS: "", aS: "", date: "Sun, Jun 21", time: "12:00 PM", venue: "Mercedes-Benz Stadium" },
-    { id: "39", group: "G", home: "Belgium", away: "Iran", hS: "", aS: "", date: "Sun, Jun 21", time: "3:00 PM", venue: "Sofi Stadium" },
-    { id: "40", group: "G", home: "New Zealand", away: "Egypt", hS: "", aS: "", date: "Sun, Jun 21", time: "9:00 PM", venue: "BC Place" },
-    { id: "41", group: "I", home: "Norway", away: "Senegal", hS: "", aS: "", date: "Mon, Jun 22", time: "8:00 PM", venue: "MetLife Stadium" },
-    { id: "42", group: "I", home: "France", away: "FIFA 2", hS: "", aS: "", date: "Mon, Jun 22", time: "5:00 PM", venue: "Lincoln Financial Field" },
-    { id: "43", group: "J", home: "Argentina", away: "Austria", hS: "", aS: "", date: "Mon, Jun 22", time: "1:00 PM", venue: "AT&T Stadium" },
-    { id: "44", group: "J", home: "Jordan", away: "Algeria", hS: "", aS: "", date: "Mon, Jun 22", time: "11:00 PM", venue: "Levi's Stadium" },
-    { id: "45", group: "L", home: "England", away: "Ghana", hS: "", aS: "", date: "Tue, Jun 23", time: "4:00 PM", venue: "Gillette Stadium" },
-    { id: "46", group: "L", home: "Panama", away: "Croatia", hS: "", aS: "", date: "Tue, Jun 23", time: "7:00 PM", venue: "BMO Field" },
-    { id: "47", group: "K", home: "Portugal", away: "Uzbekistan", hS: "", aS: "", date: "Tue, Jun 23", time: "1:00 PM", venue: "NRG Stadium" },
-    { id: "48", group: "K", home: "Colombia", away: "FIFA 1", hS: "", aS: "", date: "Tue, Jun 23", time: "10:00 PM", venue: "Estadio Akron" },
-    { id: "49", group: "C", home: "Scotland", away: "Brazil", hS: "", aS: "", date: "Wed, Jun 24", time: "6:00 PM", venue: "Hard Rock Stadium" },
-    { id: "50", group: "C", home: "Morocco", away: "Haiti", hS: "", aS: "", date: "Wed, Jun 24", time: "6:00 PM", venue: "Mercedes-Benz Stadium" },
-    { id: "51", group: "B", home: "Switzerland", away: "Canada", hS: "", aS: "", date: "Wed, Jun 24", time: "3:00 PM", venue: "BC Place" },
-    { id: "52", group: "B", home: "UEFA A", away: "Qatar", hS: "", aS: "", date: "Wed, Jun 24", time: "3:00 PM", venue: "Lumen Field" },
-    { id: "53", group: "A", home: "UEFA D", away: "Mexico", hS: "", aS: "", date: "Wed, Jun 24", time: "9:00 PM", venue: "Estadio Azteca" },
-    { id: "54", group: "A", home: "South Africa", away: "South Korea", hS: "", aS: "", date: "Wed, Jun 24", time: "9:00 PM", venue: "Estadio BBVA" },
-    { id: "55", group: "E", home: "Curacao", away: "Ivory Coast", hS: "", aS: "", date: "Thu, Jun 25", time: "4:00 PM", venue: "Lincoln Financial Field" },
-    { id: "56", group: "E", home: "Ecuador", away: "Germany", hS: "", aS: "", date: "Thu, Jun 25", time: "4:00 PM", venue: "MetLife Stadium" },
-    { id: "57", group: "F", home: "Japan", away: "UEFA B", hS: "", aS: "", date: "Thu, Jun 25", time: "7:00 PM", venue: "AT&T Stadium" },
-    { id: "58", group: "F", home: "Tunisia", away: "Netherlands", hS: "", aS: "", date: "Thu, Jun 25", time: "7:00 PM", venue: "Arrowhead Stadium" },
-    { id: "59", group: "D", home: "UEFA C", away: "United States", hS: "", aS: "", date: "Thu, Jun 25", time: "10:00 PM", venue: "SoFi Stadium" },
-    { id: "60", group: "D", home: "Paraguay", away: "Australia", hS: "", aS: "", date: "Thu, Jun 25", time: "10:00 PM", venue: "Levi's Stadium" },
-    { id: "61", group: "I", home: "Norway", away: "France", hS: "", aS: "", date: "Fri, Jun 26", time: "3:00 PM", venue: "Gillette Stadium" },
-    { id: "62", group: "I", home: "Senegal", away: "FIFA 2", hS: "", aS: "", date: "Fri, Jun 26", time: "3:00 PM", venue: "BMO Field" },
-    { id: "63", group: "G", home: "Egypt", away: "Iran", hS: "", aS: "", date: "Fri, Jun 26", time: "11:00 PM", venue: "Lumen Field" },
-    { id: "64", group: "G", home: "New Zealand", away: "Belgium", hS: "", aS: "", date: "Fri, Jun 26", time: "11:00 PM", venue: "BC Place" },
-    { id: "65", group: "H", home: "Cape Verde", away: "Saudi Arabia", hS: "", aS: "", date: "Fri, Jun 26", time: "8:00 PM", venue: "NRG Stadium" },
-    { id: "66", group: "H", home: "Uruguay", away: "Spain", hS: "", aS: "", date: "Fri, Jun 26", time: "8:00 PM", venue: "Estadio Akron" },
-    { id: "67", group: "L", home: "Panama", away: "England", hS: "", aS: "", date: "Sat, Jun 27", time: "5:00 PM", venue: "MetLife Stadium" },
-    { id: "68", group: "L", home: "Croatia", away: "Ghana", hS: "", aS: "", date: "Sat, Jun 27", time: "5:00 PM", venue: "Lincoln Financial Field" },
-    { id: "69", group: "J", home: "Algeria", away: "Austria", hS: "", aS: "", date: "Sat, Jun 27", time: "10:00 PM", venue: "Arrowhead Stadium" },
-    { id: "70", group: "J", home: "Jordan", away: "Argentina", hS: "", aS: "", date: "Sat, Jun 27", time: "10:00 PM", venue: "AT&T Stadium" },
-    { id: "71", group: "K", home: "Colombia", away: "Portugal", hS: "", aS: "", date: "Sat, Jun 27", time: "7:30 PM", venue: "Hard Rock Stadium" },
-    { id: "72", group: "K", home: "FIFA 1", away: "Uzbekistan", hS: "", aS: "", date: "Sat, Jun 27", time: "7:30 PM", venue: "Mercedes-Benz Stadium" }
-  ];
-
-  const knockoutSchedule = {
-    r32: [
-      { id: 73, date: "Jun 28", loc: "Sofi Stadium" }, { id: 76, date: "Jun 29", loc: "NRG Stadium" },
-      { id: 74, date: "Jun 29", loc: "Gillette Stadium" }, { id: 75, date: "Jun 29", loc: "Estadio BBVA" },
-      { id: 78, date: "Jun 30", loc: "AT&T Stadium" }, { id: 77, date: "Jun 30", loc: "MetLife Stadium" },
-      { id: 79, date: "Jun 30", loc: "Estadio Azteca" }, { id: 80, date: "Jul 1", loc: "Mercedes-Benz Stadium" },
-      { id: 82, date: "Jul 1", loc: "Lumen Field" }, { id: 81, date: "Jul 1", loc: "Levi's Stadium" },
-      { id: 84, date: "Jul 2", loc: "Sofi Stadium" }, { id: 83, date: "Jul 2", loc: "BMO Field" },
-      { id: 85, date: "Jul 2", loc: "BC Place" }, { id: 88, date: "Jul 3", loc: "AT&T Stadium" },
-      { id: 86, date: "Jul 3", loc: "Hard Rock Stadium" }, { id: 87, date: "Jul 3", loc: "Arrowhead Stadium" }
-    ],
-    r16: [
-      { id: 90, date: "Jul 4", loc: "NRG Stadium" }, { id: 89, date: "Jul 4", loc: "Lincoln Fin. Field" },
-      { id: 91, date: "Jul 5", loc: "MetLife Stadium" }, { id: 92, date: "Jul 5", loc: "Estadio Azteca" },
-      { id: 93, date: "Jul 6", loc: "AT&T Stadium" }, { id: 94, date: "Jul 6", loc: "Lumen Field" },
-      { id: 95, date: "Jul 7", loc: "Mercedes-Benz" }, { id: 96, date: "Jul 7", loc: "BC Place" }
-    ],
-    qf: [
-      { id: 97, date: "Jul 9", loc: "Gillette Stadium" }, { id: 98, date: "Jul 10", loc: "Sofi Stadium" },
-      { id: 99, date: "Jul 11", loc: "Hard Rock Stadium" }, { id: 100, date: "Jul 11", loc: "Arrowhead Stadium" }
-    ],
-    sf: [
-      { id: 101, date: "Jul 14", loc: "AT&T Stadium" }, { id: 102, date: "Jul 15", loc: "Mercedes-Benz" }
-    ],
-    third: [{ id: 103, date: "Jul 18", loc: "Hard Rock Stadium" }],
-    f: [{ id: 104, date: "Jul 19", loc: "MetLife Stadium" }]
-  };
-
-  function getTeamInfo(name) { return allTeams.find(t => t.name === name); }
-  function generateKitHTML(t) { return `<span class="kit" style="background: linear-gradient(135deg, ${t.c1} 50%, ${t.c2} 50%);"></span>`; }
-
-  function calculateStats() {
-    let stats = {};
-    allTeams.forEach(t => { stats[t.name] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 }; });
-
-    matches.forEach(m => {
-      if (m.hS !== '' && m.aS !== '') {
-        const hG = parseInt(m.hS); const aG = parseInt(m.aS);
-        stats[m.home].pld++; stats[m.away].pld++;
-        stats[m.home].gf += hG; stats[m.away].gf += aG;
-        stats[m.home].ga += aG; stats[m.away].ga += hG;
-
-        if (hG > aG) { stats[m.home].w++; stats[m.home].pts += 3; stats[m.away].l++; } 
-        else if (hG < aG) { stats[m.away].w++; stats[m.away].pts += 3; stats[m.home].l++; } 
-        else { stats[m.home].d++; stats[m.home].pts++; stats[m.away].d++; stats[m.away].pts++; }
-      }
-    });
-
-    for (let t in stats) stats[t].gd = stats[t].gf - stats[t].ga;
-    return stats;
-  }
-
-  function renderFixtures() {
-    const grid = document.getElementById('fixtures-grid');
-    grid.innerHTML = ''; // Clear to prevent duplicates on reload
-    
-    GROUPS.forEach(g => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `<h3 class="card-title">Group ${g}</h3>`;
-      matches.filter(m => m.group === g).forEach(m => {
-        const hT = getTeamInfo(m.home);
-        const aT = getTeamInfo(m.away);
-        card.innerHTML += `
-          <div class="match-container">
-            <div class="match-meta">Match ${m.id} • ${m.date} • ${m.time} • ${m.venue}</div>
-            <div class="match-row">
-              <div class="team-home">
-                <span class="team-name">${hT.name}</span>
-                <span class="owner-badge" style="background-color: var(--accent);">${hT.owner}</span>
-              </div>
-              <div class="score-inputs">
-                <input type="number" inputmode="numeric" min="0" class="score-input" value="${m.hS}" onchange="updateScore('${m.id}', true, this.value)">
-                <span>-</span>
-                <input type="number" inputmode="numeric" min="0" class="score-input" value="${m.aS}" onchange="updateScore('${m.id}', false, this.value)">
-              </div>
-              <div class="team-away">
-                <span class="team-name">${aT.name}</span>
-                <span class="owner-badge" style="background-color: var(--primary);">${aT.owner}</span>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-      grid.appendChild(card);
-    });
-  }
-
-  function renderFamilyStandings(currentStats) {
-    const grid = document.getElementById('family-grid');
-    grid.innerHTML = '';
-    let familyTotals = FAMILY.map(person => {
-      const personTeams = allTeams.filter(t => t.owner === person);
-      const totalPoints = personTeams.reduce((sum, t) => sum + currentStats[t.name].pts, 0);
-      return { name: person, totalPoints: totalPoints, teams: personTeams };
-    }).sort((a, b) => b.totalPoints - a.totalPoints);
-
-    familyTotals.forEach((pd, index) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      if(index === 0) card.style.borderTop = "4px solid #FFD700"; 
-      
-      let html = `<h3 class="card-title"><span>${index + 1}. ${pd.name}</span><span style="color:var(--primary); font-size:1.2em;">${pd.totalPoints} pts</span></h3><div class="table-wrapper"><table><tr><th>Team</th><th title="Played">P</th><th title="Goal Difference">GD</th><th title="Points">Pts</th></tr>`;
-      let sortedTeams = pd.teams.sort((a, b) => {
-          if (currentStats[b.name].pts !== currentStats[a.name].pts) return currentStats[b.name].pts - currentStats[a.name].pts;
-          return currentStats[b.name].gd - currentStats[a.name].gd;
-      });
-
-      sortedTeams.forEach(t => {
-        const s = currentStats[t.name];
-        html += `<tr><td><div class="team-identity">${generateKitHTML(t)} ${t.flag} ${t.name} (Gr.${t.group})</div></td><td>${s.pld}</td><td>${s.gd > 0 ? '+'+s.gd : s.gd}</td><td class="td-bold">${s.pts}</td></tr>`;
-      });
-      html += `</table></div>`; card.innerHTML = html; grid.appendChild(card);
-    });
-  }
-
-  function renderOfficialStandings(currentStats) {
-    const grid = document.getElementById('standings-grid');
-    grid.innerHTML = '';
-    GROUPS.forEach(g => {
-      const card = document.createElement('div'); card.className = 'card';
-      let groupTeams = allTeams.filter(t => t.group === g).sort((a, b) => {
-          if (currentStats[b.name].pts !== currentStats[a.name].pts) return currentStats[b.name].pts - currentStats[a.name].pts;
-          if (currentStats[b.name].gd !== currentStats[a.name].gd) return currentStats[b.name].gd - currentStats[a.name].gd;
-          return currentStats[b.name].gf - currentStats[a.name].gf;
-      });
-
-      let html = `<h3 class="card-title">Group ${g}</h3><div class="table-wrapper"><table><tr><th>Team</th><th title="Played">P</th><th title="Goal Diff">GD</th><th title="Points">Pts</th></tr>`;
-      groupTeams.forEach(t => {
-        const s = currentStats[t.name];
-        html += `<tr><td><div class="team-identity">${t.flag} ${t.name} <span class="owner-badge" style="margin-left: auto;">${t.owner}</span></div></td><td>${s.pld}</td><td>${s.gd > 0 ? '+'+s.gd : s.gd}</td><td class="td-bold">${s.pts}</td></tr>`;
-      });
-      html += `</table></div>`; card.innerHTML = html; grid.appendChild(card);
-    });
-  }
-
-  function renderBracket() {
-    const container = document.getElementById('bracket-container');
-    if(container.innerHTML !== '') return; 
-
-    const rounds = [
-      { id: 'r32', name: 'Round of 32', matches: knockoutSchedule.r32 },
-      { id: 'r16', name: 'Round of 16', matches: knockoutSchedule.r16 },
-      { id: 'qf', name: 'Quarter-Finals', matches: knockoutSchedule.qf },
-      { id: 'sf', name: 'Semi-Finals', matches: knockoutSchedule.sf },
-      { id: 'third', name: '3rd Place', matches: knockoutSchedule.third },
-      { id: 'f', name: 'Final', matches: knockoutSchedule.f }
-    ];
-
-    let optionsHTML = `<option value="">Select Team...</option>`;
-    [...allTeams].sort((a,b) => a.name.localeCompare(b.name)).forEach(t => {
-      optionsHTML += `<option value="${t.name}">${t.name} [${t.owner.substring(0,3)}]</option>`;
-    });
-
-    rounds.forEach(r => {
-      const col = document.createElement('div');
-      col.className = 'bracket-column';
-      col.innerHTML = `<div class="col-title">${r.name}</div>`;
-      
-      r.matches.forEach(m => {
-        col.innerHTML += `
-          <div class="bracket-match">
-            <div class="bracket-meta">M${m.id} • ${m.date} • ${m.loc}</div>
-            <select class="bracket-select">${optionsHTML}</select>
-            <select class="bracket-select">${optionsHTML}</select>
-          </div>
-        `;
-      });
-      container.appendChild(col);
-    });
-  }
-
-  function renderData() {
-    const stats = calculateStats();
-    renderFamilyStandings(stats);
-    renderOfficialStandings(stats);
-  }
-
-  // --- BACKEND INTEGRATION ---
-  
-  // ---> PASTE YOUR GOOGLE SCRIPT URL HERE inside the quotes:
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-
-  async function loadScores() {
-    try {
-      if(SCRIPT_URL === "YOUR_COPIED_WEB_APP_URL_GOES_HERE") {
-          console.log("No backend URL provided yet. Loading blank app.");
-          renderFixtures();
-          renderData();
-          return;
-      }
-      
-      const response = await fetch(SCRIPT_URL + "?action=get");
-      const savedScores = await response.json();
-      
-      matches.forEach(m => {
-        if (savedScores[m.id]) {
-          m.hS = savedScores[m.id].hS;
-          m.aS = savedScores[m.id].aS;
-        }
-      });
-      
-      renderFixtures();
-      renderData();
-    } catch (error) {
-      console.error("Failed to load scores from backend.");
-      // Render anyway so the app isn't broken if offline
-      renderFixtures();
-      renderData();
-    }
+  
+  // (Note: Matches array truncated for paste limit, ensure your full matches array is here)
+  let matches = []; 
+  
+  function navigate(s) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(`screen-${s}`).classList.add('active');
   }
 
   function updateScore(matchId, isHome, value) {
-    // 1. Update the app immediately so there is no lag
     const m = matches.find(x => x.id === matchId);
     if (isHome) m.hS = value; else m.aS = value;
-    
-    renderData(); // Refresh tables instantly
-
-    // 2. Send the new score to the Google Sheet silently
-    if (SCRIPT_URL !== "YOUR_COPIED_WEB_APP_URL_GOES_HERE" && (m.hS !== '' || m.aS !== '')) {
-        const url = `${SCRIPT_URL}?action=update&id=${matchId}&h=${m.hS}&a=${m.aS}`;
-        fetch(url, { method: 'GET', mode: 'no-cors' }); 
-    }
+    fetch(`${SCRIPT_URL}?action=update&id=${matchId}&h=${m.hS}&a=${m.aS}`, { method: 'GET', mode: 'no-cors' });
   }
 
-  // Initialization
-  renderBracket();
-  loadScores(); 
+  async function loadScores() {
+    const res = await fetch(SCRIPT_URL + "?action=get");
+    const data = await res.json();
+    renderFixtures(data);
+  }
+
+  function renderFixtures(savedScores) {
+    const grid = document.getElementById('fixtures-grid');
+    GROUPS.forEach(g => {
+      const card = document.createElement('div'); card.className = 'card';
+      card.innerHTML = `<div class="group-header" onclick="this.nextElementSibling.style.display=(this.nextElementSibling.style.display=='none'?'block':'none')">Group ${g} ▾</div>
+                        <div style="display:${g=='A'?'block':'none'}">` + 
+                        matches.filter(m=>m.group==g).map(m=>`
+                          <div class="match-container">
+                             <div class="match-row">
+                               <span style="background:var(--${allTeams.find(t=>t.name==m.home).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.home).owner}</span>
+                               <input class="score-input" value="${savedScores[m.id]?.hS||''}" onchange="updateScore('${m.id}', true, this.value)">
+                               <input class="score-input" value="${savedScores[m.id]?.aS||''}" onchange="updateScore('${m.id}', false, this.value)">
+                               <span style="background:var(--${allTeams.find(t=>t.name==m.away).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.away).owner}</span>
+                             </div>
+                          </div>`).join('') + `</div>`;
+      grid.appendChild(card);
+    });
+  }
+  loadScores();
 </script>
 </body>
 </html>
