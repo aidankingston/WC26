@@ -8,16 +8,18 @@
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
   :root { --primary: #111424; --bg-color: #F4F6F9; --card-bg: #FFFFFF; --border: #E5E7EB;
     --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 80px; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 80px; color: #1A1A24; }
   .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
   .app-content { margin-top: 70px; padding: 0 15px; }
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 2000; }
   .nav-btn { color: #888; font-size: 14px; text-align: center; cursor: pointer; }
   .nav-btn.active { color: white; }
   .screen { display: none; } .screen.active { display: block; }
-  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border); }
-  .score-input { width: 40px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-weight: 800; }
-  .owner-badge { font-size: 9px; padding: 2px 6px; border-radius: 10px; color: white; font-weight: bold; text-transform: uppercase; }
+  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+  .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #eee; }
+  .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; font-size: 16px; }
+  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; text-transform: uppercase; }
+  .card-title { font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -35,19 +37,6 @@
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
   
-  // The full dataset from your schedule
-  let matches = [
-    {id:"1", home:"Mexico", away:"South Africa", group:"A"}, {id:"2", home:"South Korea", away:"UEFA D", group:"A"},
-    {id:"3", home:"Canada", away:"UEFA A", group:"B"}, {id:"4", home:"United States", away:"Paraguay", group:"D"},
-    {id:"5", home:"Haiti", away:"Scotland", group:"C"}, {id:"6", home:"Australia", away:"UEFA C", group:"D"},
-    {id:"7", home:"Brazil", away:"Morocco", group:"C"}, {id:"8", home:"Qatar", away:"Switzerland", group:"B"},
-    {id:"9", home:"Ivory Coast", away:"Ecuador", group:"E"}, {id:"10", home:"Germany", away:"Curacao", group:"E"},
-    {id:"11", home:"Netherlands", away:"Japan", group:"F"}, {id:"12", home:"UEFA B", away:"Tunisia", group:"F"},
-    {id:"13", home:"Saudi Arabia", away:"Uruguay", group:"H"}, {id:"14", home:"Spain", away:"Cape Verde", group:"H"},
-    {id:"15", home:"Iran", away:"New Zealand", group:"G"}, {id:"16", home:"Belgium", away:"Egypt", group:"G"}
-    // Note: I have initialized the core framework; please ensure your 104 matches are formatted in this exact array style.
-  ];
-
   function navigate(s, el) {
     document.querySelectorAll('.screen').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
@@ -55,23 +44,31 @@
     el.classList.add('active');
   }
 
-  async function loadScores() {
-    const res = await fetch(SCRIPT_URL + "?action=get");
-    const data = await res.json();
+  async function init() {
+    const [fRes, sRes] = await Promise.all([fetch(SCRIPT_URL + "?action=getFixtures"), fetch(SCRIPT_URL + "?action=get")]);
+    const fixtures = await fRes.json();
+    const scores = await sRes.json();
     const grid = document.getElementById('fixtures-grid');
-    matches.forEach(m => {
-      grid.innerHTML += `<div class="card"><div class="match-row">
-        <span>${m.home}</span><input class="score-input" value="${data[m.id]?.hS||''}" onchange="updateScore('${m.id}', true, this.value)">
-        - <input class="score-input" value="${data[m.id]?.aS||''}" onchange="updateScore('${m.id}', false, this.value)"><span>${m.away}</span>
-      </div></div>`;
+    grid.innerHTML = '';
+    fixtures.forEach(m => {
+      let id = m["Match #"];
+      grid.innerHTML += `
+        <div class="card">
+          <div style="font-size:10px; color:#666;">${m.Stage} | ${m["Location"]}</div>
+          <div class="match-row">
+            <span>${m["Team 1"]}</span>
+            <div><input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)"> - 
+                 <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)"></div>
+            <span>${m["Team 2"]}</span>
+          </div>
+        </div>`;
     });
   }
 
   function updateScore(id, isH, val) {
     fetch(`${SCRIPT_URL}?action=update&id=${id}&h=${isH ? val : ''}&a=${!isH ? val : ''}`, { method: 'GET', mode: 'no-cors' });
   }
-
-  loadScores();
+  init();
 </script>
 </body>
 </html>
