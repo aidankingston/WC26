@@ -18,7 +18,6 @@
   .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
   .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #eee; }
   .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; font-size: 16px; }
-  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; text-transform: uppercase; }
   .card-title { font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
 </style>
 </head>
@@ -45,29 +44,43 @@
   }
 
   async function init() {
-    const [fRes, sRes] = await Promise.all([fetch(SCRIPT_URL + "?action=getFixtures"), fetch(SCRIPT_URL + "?action=get")]);
-    const fixtures = await fRes.json();
-    const scores = await sRes.json();
-    const grid = document.getElementById('fixtures-grid');
-    grid.innerHTML = '';
-    fixtures.forEach(m => {
-      let id = m["Match #"];
-      grid.innerHTML += `
-        <div class="card">
-          <div style="font-size:10px; color:#666;">${m.Stage} | ${m["Location"]}</div>
-          <div class="match-row">
-            <span>${m["Team 1"]}</span>
-            <div><input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)"> - 
-                 <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)"></div>
-            <span>${m["Team 2"]}</span>
-          </div>
-        </div>`;
-    });
+    try {
+      const grid = document.getElementById('fixtures-grid');
+      grid.innerHTML = 'Connecting to Google Sheets...';
+      
+      const [fRes, sRes] = await Promise.all([
+        fetch(SCRIPT_URL + "?action=getFixtures"), 
+        fetch(SCRIPT_URL + "?action=get")
+      ]);
+      
+      const fixtures = await fRes.json();
+      const scores = await sRes.json();
+      
+      grid.innerHTML = '';
+      fixtures.forEach(m => {
+        let id = m["Match #"];
+        grid.innerHTML += `
+          <div class="card">
+            <div style="font-size:10px; color:#666;">${m.Stage || 'Stage'} | ${m.Location || 'Location'}</div>
+            <div class="match-row">
+              <span>${m["Team 1"] || ''}</span>
+              <div>
+                <input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)"> - 
+                <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)">
+              </div>
+              <span>${m["Team 2"] || ''}</span>
+            </div>
+          </div>`;
+      });
+    } catch (err) {
+      document.getElementById('fixtures-grid').innerHTML = 'Error loading data: ' + err.message;
+    }
   }
 
   function updateScore(id, isH, val) {
     fetch(`${SCRIPT_URL}?action=update&id=${id}&h=${isH ? val : ''}&a=${!isH ? val : ''}`, { method: 'GET', mode: 'no-cors' });
   }
+  
   init();
 </script>
 </body>
