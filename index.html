@@ -46,7 +46,7 @@
   async function init() {
     try {
       const grid = document.getElementById('fixtures-grid');
-      grid.innerHTML = 'Connecting to Google Sheets...';
+      grid.innerHTML = 'Loading matches from Drive...';
       
       const [fRes, sRes] = await Promise.all([
         fetch(SCRIPT_URL + "?action=getFixtures"), 
@@ -78,7 +78,12 @@
   }
 
   function updateScore(id, isH, val) {
-    fetch(`${SCRIPT_URL}?action=update&id=${id}&h=${isH ? val : ''}&a=${!isH ? val : ''}`, { method: 'GET', mode: 'no-cors' });
+    fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `action=update&id=${id}&h=${isH ? val : ''}&a=${!isH ? val : ''}`
+    });
   }
   
   init();
