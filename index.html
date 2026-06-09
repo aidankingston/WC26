@@ -8,19 +8,18 @@
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
   :root { --primary: #111424; --bg-color: #F4F6F9; --card-bg: #FFFFFF; --border: #E5E7EB;
     --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  * { box-sizing: border-box; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding: 0; color: #1A1A24; }
   .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
   .app-content { margin-top: 60px; padding: 20px 15px; }
   .screen { display: none; } .screen.active { display: block; }
-  .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); border: 1px solid var(--border); }
-  .group-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 10px 0; font-weight: 800; font-size: 18px; color: var(--primary); }
-  .match-container { border-top: 1px solid #eee; padding: 15px 0; }
-  .match-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; font-size: 16px; }
-  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; text-transform: uppercase; }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .card-title { font-size: 18px; font-weight: 800; color: var(--primary); padding-bottom: 10px; border-bottom: 2px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; }
+  .group-header { cursor: pointer; font-weight: 800; font-size: 18px; padding: 10px 0; color: var(--primary); }
+  .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #f0f0f0; }
+  .score-input { width: 40px; height: 35px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; }
+  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; }
   .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .tile { background: var(--card-bg); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
+  .tile { background: var(--card-bg); border-radius: 16px; padding: 25px 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -42,43 +41,73 @@
   const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
   
-  // (Note: Matches array truncated for paste limit, ensure your full matches array is here)
-  let matches = []; 
-  
+  let allTeams = [
+    { name: "Mexico", group: "A", owner: "Connie" }, { name: "South Africa", group: "A", owner: "Connie" }, { name: "South Korea", group: "A", owner: "Jemma" }, { name: "UEFA D", group: "A", owner: "Jemma" },
+    { name: "Canada", group: "B", owner: "Colman" }, { name: "UEFA A", group: "B", owner: "Zelda" }, { name: "Qatar", group: "B", owner: "Zelda" }, { name: "Switzerland", group: "B", owner: "Connie" },
+    { name: "Brazil", group: "C", owner: "Zelda" }, { name: "Morocco", group: "C", owner: "Aidan" }, { name: "Haiti", group: "C", owner: "Aidan" }, { name: "Scotland", group: "C", owner: "Zelda" },
+    { name: "United States", group: "D", owner: "Zelda" }, { name: "Paraguay", group: "D", owner: "Zelda" }, { name: "Australia", group: "D", owner: "Zelda" }, { name: "UEFA C", group: "D", owner: "Aidan" },
+    { name: "Germany", group: "E", owner: "Colman" }, { name: "Curacao", group: "E", owner: "Jemma" }, { name: "Ivory Coast", group: "E", owner: "Connie" }, { name: "Ecuador", group: "E", owner: "Jemma" },
+    { name: "Netherlands", group: "F", owner: "Connie" }, { name: "Japan", group: "F", owner: "Aidan" }, { name: "UEFA B", group: "F", owner: "Connie" }, { name: "Tunisia", group: "F", owner: "Jemma" },
+    { name: "Belgium", group: "G", owner: "Colman" }, { name: "Egypt", group: "G", owner: "Connie" }, { name: "Iran", group: "G", owner: "Zelda" }, { name: "New Zealand", group: "G", owner: "Aidan" },
+    { name: "Spain", group: "H", owner: "Jemma" }, { name: "Cape Verde", group: "H", owner: "Aidan" }, { name: "Saudi Arabia", group: "H", owner: "Jemma" }, { name: "Uruguay", group: "H", owner: "Aidan" },
+    { name: "France", group: "I", owner: "Colman" }, { name: "Senegal", group: "I", owner: "Colman" }, { name: "Norway", group: "I", owner: "Connie" }, { name: "FIFA 2", group: "I", owner: "Aidan" },
+    { name: "Argentina", group: "J", owner: "Zelda" }, { name: "Algeria", group: "J", owner: "Colman" }, { name: "Austria", group: "J", owner: "Connie" }, { name: "Jordan", group: "J", owner: "Jemma" },
+    { name: "Portugal", group: "K", owner: "Aidan" }, { name: "FIFA 1", group: "K", owner: "Colman" }, { name: "Uzbekistan", group: "K", owner: "Jemma" }, { name: "Colombia", group: "K", owner: "Colman" },
+    { name: "England", group: "L", owner: "Colman" }, { name: "Croatia", group: "L", owner: "Zelda" }, { name: "Ghana", group: "L", owner: "Colman" }, { name: "Panama", group: "L", owner: "Connie" }
+  ];
+
+  let matches = [
+    { id: "1", group: "A", home: "Mexico", away: "South Africa" }, { id: "2", group: "A", home: "South Korea", away: "UEFA D" }, { id: "3", group: "B", home: "Canada", away: "UEFA A" }, { id: "4", group: "D", home: "United States", away: "Paraguay" }, { id: "5", group: "C", home: "Haiti", away: "Scotland" }, { id: "6", group: "D", home: "Australia", away: "UEFA C" }, { id: "7", group: "C", home: "Brazil", away: "Morocco" }, { id: "8", group: "B", home: "Qatar", away: "Switzerland" }, { id: "9", group: "E", home: "Ivory Coast", away: "Ecuador" }, { id: "10", group: "E", home: "Germany", away: "Curacao" }, { id: "11", group: "F", home: "Netherlands", away: "Japan" }, { id: "12", group: "F", home: "UEFA B", away: "Tunisia" }, { id: "13", group: "H", home: "Saudi Arabia", away: "Uruguay" }, { id: "14", group: "H", home: "Spain", away: "Cape Verde" }, { id: "15", group: "G", home: "Iran", away: "New Zealand" }, { id: "16", group: "G", home: "Belgium", away: "Egypt" }, { id: "17", group: "I", home: "France", away: "Senegal" }, { id: "18", group: "I", home: "FIFA 2", away: "Norway" }, { id: "19", group: "J", home: "Argentina", away: "Algeria" }, { id: "20", group: "J", home: "Austria", away: "Jordan" }, { id: "21", group: "L", home: "England", away: "Croatia" }, { id: "22", group: "L", home: "Ghana", away: "Panama" }, { id: "23", group: "K", home: "Portugal", away: "FIFA 1" }, { id: "24", group: "K", home: "Uzbekistan", away: "Colombia" }, { id: "25", group: "A", home: "UEFA D", away: "South Africa" }, { id: "26", group: "B", home: "Switzerland", away: "UEFA A" }, { id: "27", group: "B", home: "Canada", away: "Qatar" }, { id: "28", group: "A", home: "Mexico", away: "South Korea" }, { id: "29", group: "C", home: "Brazil", away: "Haiti" }, { id: "30", group: "C", home: "Scotland", away: "Morocco" }, { id: "31", group: "D", home: "UEFA C", away: "Paraguay" }, { id: "32", group: "D", home: "United States", away: "Australia" }, { id: "33", group: "E", home: "Germany", away: "Ivory Coast" }, { id: "34", group: "E", home: "Ecuador", away: "Curacao" }, { id: "35", group: "F", home: "Netherlands", away: "UEFA B" }, { id: "36", group: "F", home: "Tunisia", away: "Japan" }, { id: "37", group: "H", home: "Uruguay", away: "Cape Verde" }, { id: "38", group: "H", home: "Spain", away: "Saudi Arabia" }, { id: "39", group: "G", home: "Belgium", away: "Iran" }, { id: "40", group: "G", home: "New Zealand", away: "Egypt" }, { id: "41", group: "I", home: "Norway", away: "Senegal" }, { id: "42", group: "I", home: "France", away: "FIFA 2" }, { id: "43", group: "J", home: "Argentina", away: "Austria" }, { id: "44", group: "J", home: "Jordan", away: "Algeria" }, { id: "45", group: "L", home: "England", away: "Ghana" }, { id: "46", group: "L", home: "Panama", away: "Croatia" }, { id: "47", group: "K", home: "Portugal", away: "Uzbekistan" }, { id: "48", group: "K", home: "Colombia", away: "FIFA 1" }, { id: "49", group: "C", home: "Scotland", away: "Brazil" }, { id: "50", group: "C", home: "Morocco", away: "Haiti" }, { id: "51", group: "B", home: "Switzerland", away: "Canada" }, { id: "52", group: "B", home: "UEFA A", away: "Qatar" }, { id: "53", group: "A", home: "UEFA D", away: "Mexico" }, { id: "54", group: "A", home: "South Africa", away: "South Korea" }, { id: "55", group: "E", home: "Curacao", away: "Ivory Coast" }, { id: "56", group: "E", home: "Ecuador", away: "Germany" }, { id: "57", group: "F", home: "Japan", away: "UEFA B" }, { id: "58", group: "F", home: "Tunisia", away: "Netherlands" }, { id: "59", group: "D", home: "UEFA C", away: "United States" }, { id: "60", group: "D", home: "Paraguay", away: "Australia" }, { id: "61", group: "I", home: "Norway", away: "France" }, { id: "62", group: "I", home: "Senegal", away: "FIFA 2" }, { id: "63", group: "G", home: "Egypt", away: "Iran" }, { id: "64", group: "G", home: "New Zealand", away: "Belgium" }, { id: "65", group: "H", home: "Cape Verde", away: "Saudi Arabia" }, { id: "66", group: "H", home: "Uruguay", away: "Spain" }, { id: "67", group: "L", home: "Panama", away: "England" }, { id: "68", group: "L", home: "Croatia", away: "Ghana" }, { id: "69", group: "J", home: "Algeria", away: "Austria" }, { id: "70", group: "J", home: "Jordan", away: "Argentina" }, { id: "71", group: "K", home: "Colombia", away: "Portugal" }, { id: "72", group: "K", home: "FIFA 1", away: "Uzbekistan" }
+  ];
+
   function navigate(s) {
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById(`screen-${s}`).classList.add('active');
+    document.getElementById('appTitle').innerText = {'home':'WC Tracker','family':'Leaderboard','fixtures':'Matches','standings':'Groups'}[s] || 'WC 2026';
   }
 
-  function updateScore(matchId, isHome, value) {
-    const m = matches.find(x => x.id === matchId);
-    if (isHome) m.hS = value; else m.aS = value;
-    fetch(`${SCRIPT_URL}?action=update&id=${matchId}&h=${m.hS}&a=${m.aS}`, { method: 'GET', mode: 'no-cors' });
+  function updateScore(id, isHome, val) {
+    let m = matches.find(x => x.id == id);
+    if(isHome) m.hS = val; else m.aS = val;
+    fetch(`${SCRIPT_URL}?action=update&id=${id}&h=${m.hS}&a=${m.aS}`, { method: 'GET', mode: 'no-cors' });
+    renderData();
   }
 
   async function loadScores() {
     const res = await fetch(SCRIPT_URL + "?action=get");
     const data = await res.json();
-    renderFixtures(data);
+    matches.forEach(m => { if(data[m.id]) { m.hS = data[m.id].hS; m.aS = data[m.id].aS; } });
+    renderFixtures(); renderData();
   }
 
-  function renderFixtures(savedScores) {
+  function renderFixtures() {
     const grid = document.getElementById('fixtures-grid');
+    grid.innerHTML = '';
     GROUPS.forEach(g => {
       const card = document.createElement('div'); card.className = 'card';
       card.innerHTML = `<div class="group-header" onclick="this.nextElementSibling.style.display=(this.nextElementSibling.style.display=='none'?'block':'none')">Group ${g} ▾</div>
-                        <div style="display:${g=='A'?'block':'none'}">` + 
-                        matches.filter(m=>m.group==g).map(m=>`
-                          <div class="match-container">
-                             <div class="match-row">
-                               <span style="background:var(--${allTeams.find(t=>t.name==m.home).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.home).owner}</span>
-                               <input class="score-input" value="${savedScores[m.id]?.hS||''}" onchange="updateScore('${m.id}', true, this.value)">
-                               <input class="score-input" value="${savedScores[m.id]?.aS||''}" onchange="updateScore('${m.id}', false, this.value)">
-                               <span style="background:var(--${allTeams.find(t=>t.name==m.away).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.away).owner}</span>
-                             </div>
-                          </div>`).join('') + `</div>`;
+                        <div style="display:${g=='A'?'block':'none'}">` + matches.filter(m=>m.group==g).map(m=>`
+                        <div class="match-row">
+                          <span style="background:var(--${allTeams.find(t=>t.name==m.home).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.home).owner}</span>
+                          <input class="score-input" value="${m.hS||''}" onchange="updateScore('${m.id}',true,this.value)">
+                          <input class="score-input" value="${m.aS||''}" onchange="updateScore('${m.id}',false,this.value)">
+                          <span style="background:var(--${allTeams.find(t=>t.name==m.away).owner})" class="owner-badge">${allTeams.find(t=>t.name==m.away).owner}</span>
+                        </div>`).join('') + `</div>`;
       grid.appendChild(card);
     });
+  }
+
+  function renderData() {
+    let points = {}; FAMILY.forEach(p => points[p] = 0);
+    matches.forEach(m => {
+        if(m.hS !== '' && m.aS !== '') {
+            let ownerH = allTeams.find(t=>t.name==m.home).owner;
+            let ownerA = allTeams.find(t=>t.name==m.away).owner;
+            if(m.hS > m.aS) points[ownerH] += 3; else if(m.aS > m.hS) points[ownerA] += 3; else { points[ownerH] += 1; points[ownerA] += 1; }
+        }
+    });
+    document.getElementById('family-grid').innerHTML = Object.entries(points).sort((a,b)=>b[1]-a[1]).map(([p, pts], i) => 
+        `<div class="card" style="border-left: 5px solid var(--${p})"><div class="card-title"><span>${i+1}. ${p}</span><span>${pts} pts</span></div></div>`).join('');
   }
   loadScores();
 </script>
