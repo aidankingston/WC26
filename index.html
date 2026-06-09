@@ -10,7 +10,6 @@
   :root {
     --primary: #111424;
     --accent: #FF2B4A;
-    --accent-hover: #D91A36;
     --bg-color: #F4F6F9;
     --card-bg: #FFFFFF;
     --text-main: #1A1A24;
@@ -159,7 +158,7 @@
   <main id="screen-family" class="screen"><div id="family-grid"></div></main>
   <main id="screen-standings" class="screen"><div id="standings-grid"></div></main>
   <main id="screen-fixtures" class="screen">
-    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:0;">Scores entered automatically update all tables.</p>
+    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:0;">Scores entered automatically save to the cloud for everyone.</p>
     <div id="fixtures-grid"></div>
   </main>
   <main id="screen-bracket" class="screen">
@@ -174,7 +173,6 @@
     document.getElementById(`screen-${screenId}`).classList.add('active');
     document.getElementById('appTitle').innerText = {'home':'WC 2026 Tracker','family':'Family Leaderboard','standings':'Official Groups','fixtures':'Match Fixtures','bracket':'Knockout Stage'}[screenId];
     document.getElementById('backBtn').style.display = (screenId === 'home') ? 'none' : 'block';
-    if(screenId !== 'home') renderData();
   }
 
   const FAMILY = ["Connie", "Zelda", "Colman", "Mummy", "Daddy"];
@@ -231,7 +229,6 @@
     { name: "Panama", group: "L", flag: "🇵🇦", c1: "#DA291C", c2: "#FFFFFF", owner: "Connie" }
   ];
 
-  // Exact 72 Match Schedule parsed from official draw
   const matches = [
     { id: "1", group: "A", home: "Mexico", away: "South Africa", hS: "", aS: "", date: "Thu, Jun 11", time: "3:00 PM", venue: "Estadio Azteca" },
     { id: "2", group: "A", home: "South Korea", away: "UEFA D", hS: "", aS: "", date: "Thu, Jun 11", time: "10:00 PM", venue: "Estadio Akron" },
@@ -307,7 +304,6 @@
     { id: "72", group: "K", home: "FIFA 1", away: "Uzbekistan", hS: "", aS: "", date: "Sat, Jun 27", time: "7:30 PM", venue: "Mercedes-Benz Stadium" }
   ];
 
-  // Knockout Schedule mapped from CSV
   const knockoutSchedule = {
     r32: [
       { id: 73, date: "Jun 28", loc: "Sofi Stadium" }, { id: 76, date: "Jun 29", loc: "NRG Stadium" },
@@ -360,14 +356,9 @@
     return stats;
   }
 
-  function updateScore(matchId, isHome, value) {
-    const m = matches.find(x => x.id === matchId);
-    isHome ? m.hS = value : m.aS = value;
-  }
-
   function renderFixtures() {
     const grid = document.getElementById('fixtures-grid');
-    if(grid.innerHTML !== '') return; 
+    grid.innerHTML = ''; // Clear to prevent duplicates on reload
     
     GROUPS.forEach(g => {
       const card = document.createElement('div');
@@ -385,9 +376,9 @@
                 <span class="owner-badge" style="background-color: var(--accent);">${hT.owner}</span>
               </div>
               <div class="score-inputs">
-                <input type="number" inputmode="numeric" min="0" class="score-input" oninput="updateScore('${m.id}', true, this.value)">
+                <input type="number" inputmode="numeric" min="0" class="score-input" value="${m.hS}" onchange="updateScore('${m.id}', true, this.value)">
                 <span>-</span>
-                <input type="number" inputmode="numeric" min="0" class="score-input" oninput="updateScore('${m.id}', false, this.value)">
+                <input type="number" inputmode="numeric" min="0" class="score-input" value="${m.aS}" onchange="updateScore('${m.id}', false, this.value)">
               </div>
               <div class="team-away">
                 <span class="team-name">${aT.name}</span>
@@ -491,9 +482,57 @@
     renderOfficialStandings(stats);
   }
 
-  renderFixtures();
+  // --- BACKEND INTEGRATION ---
+  
+  // ---> PASTE YOUR GOOGLE SCRIPT URL HERE inside the quotes:
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
+
+  async function loadScores() {
+    try {
+      if(SCRIPT_URL === "YOUR_COPIED_WEB_APP_URL_GOES_HERE") {
+          console.log("No backend URL provided yet. Loading blank app.");
+          renderFixtures();
+          renderData();
+          return;
+      }
+      
+      const response = await fetch(SCRIPT_URL + "?action=get");
+      const savedScores = await response.json();
+      
+      matches.forEach(m => {
+        if (savedScores[m.id]) {
+          m.hS = savedScores[m.id].hS;
+          m.aS = savedScores[m.id].aS;
+        }
+      });
+      
+      renderFixtures();
+      renderData();
+    } catch (error) {
+      console.error("Failed to load scores from backend.");
+      // Render anyway so the app isn't broken if offline
+      renderFixtures();
+      renderData();
+    }
+  }
+
+  function updateScore(matchId, isHome, value) {
+    // 1. Update the app immediately so there is no lag
+    const m = matches.find(x => x.id === matchId);
+    if (isHome) m.hS = value; else m.aS = value;
+    
+    renderData(); // Refresh tables instantly
+
+    // 2. Send the new score to the Google Sheet silently
+    if (SCRIPT_URL !== "YOUR_COPIED_WEB_APP_URL_GOES_HERE" && (m.hS !== '' || m.aS !== '')) {
+        const url = `${SCRIPT_URL}?action=update&id=${matchId}&h=${m.hS}&a=${m.aS}`;
+        fetch(url, { method: 'GET', mode: 'no-cors' }); 
+    }
+  }
+
+  // Initialization
   renderBracket();
-  renderData(); 
+  loadScores(); 
 </script>
 </body>
 </html>
