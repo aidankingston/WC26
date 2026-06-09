@@ -2,90 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>World Cup 26™ Family Edition</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
-  :root { --primary: #111424; --bg-color: #F4F6F9; --card-bg: #FFFFFF; --border: #E5E7EB;
-    --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 80px; color: #1A1A24; }
+  :root { --primary: #111424; --bg-color: #F4F6F9; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 80px; }
   .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
   .app-content { margin-top: 70px; padding: 0 15px; }
-  .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 2000; }
-  .nav-btn { color: #888; font-size: 14px; text-align: center; cursor: pointer; }
-  .nav-btn.active { color: white; }
-  .screen { display: none; } .screen.active { display: block; }
-  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
-  .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #eee; }
-  .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; font-size: 16px; }
-  .card-title { font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 10px; }
+  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; }
+  .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+  .score-input { width: 45px; height: 40px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; }
 </style>
 </head>
 <body>
-<div class="app-bar"><h1 id="appTitle" style="font-size:18px">WC 2026 Tracker</h1></div>
-<div class="app-content">
-  <main id="screen-family" class="screen active"><h2>🏆 Leaderboard</h2><div id="family-grid"></div></main>
-  <main id="screen-fixtures" class="screen"><h2>⚽ Matches</h2><div id="fixtures-grid"></div></main>
-  <main id="screen-standings" class="screen"><h2>🌍 Groups</h2><div id="standings-grid"></div></main>
-</div>
-<div class="nav-bar">
-  <div class="nav-btn active" onclick="navigate('family', this)">🏆<br>Board</div>
-  <div class="nav-btn" onclick="navigate('fixtures', this)">⚽<br>Matches</div>
-  <div class="nav-btn" onclick="navigate('standings', this)">🌍<br>Groups</div>
-</div>
+<div class="app-bar"><h1>WC 2026 Tracker</h1></div>
+<div class="app-content" id="fixtures-grid">Loading...</div>
+
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  
-  function navigate(s, el) {
-    document.querySelectorAll('.screen').forEach(e => e.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
-    document.getElementById(`screen-${s}`).classList.add('active');
-    el.classList.add('active');
-  }
 
   async function init() {
     try {
-      const grid = document.getElementById('fixtures-grid');
-      grid.innerHTML = 'Loading matches from Drive...';
-      
       const [fRes, sRes] = await Promise.all([
-        fetch(SCRIPT_URL + "?action=getFixtures"), 
-        fetch(SCRIPT_URL + "?action=get")
+        fetch(SCRIPT_URL + "?action=getFixtures", {mode: 'cors'}),
+        fetch(SCRIPT_URL + "?action=get", {mode: 'cors'})
       ]);
-      
       const fixtures = await fRes.json();
       const scores = await sRes.json();
-      
+      const grid = document.getElementById('fixtures-grid');
       grid.innerHTML = '';
       fixtures.forEach(m => {
         let id = m["Match #"];
         grid.innerHTML += `
           <div class="card">
-            <div style="font-size:10px; color:#666;">${m.Stage || 'Stage'} | ${m.Location || 'Location'}</div>
+            <div style="font-size:10px">${m.Stage}</div>
             <div class="match-row">
-              <span>${m["Team 1"] || ''}</span>
+              <span>${m["Team 1"]}</span>
               <div>
                 <input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)"> - 
                 <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)">
               </div>
-              <span>${m["Team 2"] || ''}</span>
+              <span>${m["Team 2"]}</span>
             </div>
           </div>`;
       });
     } catch (err) {
-      document.getElementById('fixtures-grid').innerHTML = 'Error loading data: ' + err.message;
+      document.getElementById('fixtures-grid').innerHTML = 'Error: ' + err.message;
     }
   }
 
   function updateScore(id, isH, val) {
-    fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `action=update&id=${id}&h=${isH ? val : ''}&a=${!isH ? val : ''}`
-    });
+    let formData = new FormData();
+    formData.append("action", "update");
+    formData.append("id", id);
+    formData.append("h", isH ? val : "");
+    formData.append("a", !isH ? val : "");
+    fetch(SCRIPT_URL, { method: 'POST', body: formData, mode: 'no-cors' });
   }
-  
   init();
 </script>
 </body>
