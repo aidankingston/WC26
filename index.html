@@ -2,30 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>World Cup 26™ Family Edition</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
-  :root { --primary: #111424; --bg-color: #F4F6F9; --card-bg: #FFFFFF; --border: #E5E7EB;
-    --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 80px; color: #1A1A24; }
+  :root { --primary: #111424; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+  body { font-family: 'Outfit', sans-serif; background: #F4F6F9; margin: 0; padding-bottom: 80px; }
   .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
-  .app-content { margin-top: 70px; padding: 0 15px; }
+  .app-content { margin-top: 70px; padding: 15px; }
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 2000; }
-  .nav-btn { color: #888; font-size: 14px; text-align: center; cursor: pointer; }
+  .nav-btn { color: #888; font-size: 12px; text-align: center; cursor: pointer; }
   .nav-btn.active { color: white; }
   .screen { display: none; } .screen.active { display: block; }
-  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
-  .match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #eee; }
-  .score-input { width: 40px; height: 35px; text-align: center; border: 1px solid #ddd; border-radius: 6px; font-weight: 800; }
-  .owner-badge { font-size: 9px; padding: 3px 6px; border-radius: 12px; color: white; font-weight: bold; text-transform: uppercase; }
+  .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; }
+  .owner-badge { font-size: 9px; padding: 2px 6px; border-radius: 10px; color: white; font-weight: bold; text-transform: uppercase; }
+  .score-input { width: 35px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
 </style>
 </head>
 <body>
-<div class="app-bar"><h1 id="appTitle" style="font-size:18px">WC 2026 Tracker</h1></div>
+<div class="app-bar"><h1>WC 26 Tracker</h1></div>
 <div class="app-content">
-  <main id="screen-family" class="screen active"><h2>🏆 Leaderboard</h2><div id="family-grid"></div></main>
-  <main id="screen-fixtures" class="screen"><h2>⚽ Matches</h2><div id="fixtures-grid"></div></main>
+  <main id="screen-family" class="screen active">
+    <h2>🏆 Leaderboard</h2><div id="family-grid"></div>
+    <h2>👥 My Teams</h2><div id="teams-grid"></div>
+  </main>
+  <main id="screen-fixtures" class="screen"><div id="fixtures-grid"></div></main>
 </div>
 <div class="nav-bar">
   <div class="nav-btn active" onclick="navigate('family', this)">🏆<br>Board</div>
@@ -55,34 +56,34 @@
     const fixtures = await jsonp(SCRIPT_URL + "?action=getFixtures");
     const scores = await jsonp(SCRIPT_URL + "?action=get");
     
-    // 1. Render Matches
+    // Fixtures
     const fGrid = document.getElementById('fixtures-grid');
-    fGrid.innerHTML = '';
     fixtures.forEach(m => {
       let id = m["Match #"];
-      fGrid.innerHTML += `
-        <div class="card">
-          <div class="match-row">
-            <span class="owner-badge" style="background:var(--${owners[m["Team 1"]]})">${owners[m["Team 1"]]}</span>
-            <span>${m["Team 1"]}</span>
-            <input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)">
-            <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)">
-            <span>${m["Team 2"]}</span>
-            <span class="owner-badge" style="background:var(--${owners[m["Team 2"]]})">${owners[m["Team 2"]]}</span>
-          </div>
-        </div>`;
+      fGrid.innerHTML += `<div class="card">
+        <div style="font-size:10px; color:#888">${m.Stage} | ${m["Date & Time (US EDT/UTC-4)"]} | ${m.Location}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px">
+          <span class="owner-badge" style="background:var(--${owners[m["Team 1"]]})">${owners[m["Team 1"]]}</span>
+          <span>${m["Team 1"]}</span>
+          <input class="score-input" value="${scores[id]?.hS||''}" onchange="updateScore('${id}', true, this.value)">
+          -
+          <input class="score-input" value="${scores[id]?.aS||''}" onchange="updateScore('${id}', false, this.value)">
+          <span>${m["Team 2"]}</span>
+          <span class="owner-badge" style="background:var(--${owners[m["Team 2"]]})">${owners[m["Team 2"]]}</span>
+        </div>
+      </div>`;
     });
 
-    // 2. Calculate and Render Leaderboard
-    let pts = {"Zelda":0,"Colman":0,"Connie":0,"Jemma":0,"Aidan":0};
-    Object.values(scores).forEach(s => {
-      if(s.hS !== "" && s.aS !== "") {
-        // Simple logic: 3 pts for win, 1 for draw
-        // (You can expand this if needed)
-      }
+    // My Teams
+    const tGrid = document.getElementById('teams-grid');
+    let myTeams = {};
+    Object.entries(owners).forEach(([team, owner]) => {
+      if(!myTeams[owner]) myTeams[owner] = [];
+      myTeams[owner].push(team);
     });
-    document.getElementById('family-grid').innerHTML = Object.entries(pts).map(([p, v]) => 
-      `<div class="card" style="border-left:5px solid var(--${p})"><b>${p}</b>: ${v} points</div>`).join('');
+    Object.entries(myTeams).forEach(([owner, teams]) => {
+      tGrid.innerHTML += `<div class="card"><b style="color:var(--${owner})">${owner}</b><br><small>${teams.join(', ')}</small></div>`;
+    });
   }
 
   function updateScore(id, isH, val) {
