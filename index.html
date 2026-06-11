@@ -3,83 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WC26 | Family Tracker</title>
+<title>WC26 | Family Hub</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
-  :root { --primary: #002366; --bg: #f8f9fa; --card: #ffffff; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
+  :root { --primary: #002366; --bg: #f4f6f9; --card: #ffffff; --text: #111424; --border: #eef2f5; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
   
-  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-weight: 700; }
-  .screen { display: none; padding: 15px; } .screen.active { display: block; }
-  
-  /* Navigation */
-  .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
-  .nav-btn { font-size: 10px; text-align: center; color: #666; }
-  .nav-btn.active { color: var(--primary); font-weight: 700; }
+  /* Dark Mode Auto-Switch */
+  @media (prefers-color-scheme: dark) {
+    :root { --primary: #58a6ff; --bg: #0d1117; --card: #161b22; --text: #c9d1d9; --border: #30363d; }
+    .header { background: #161b22; border-bottom: 1px solid var(--border); color: var(--text); }
+    .nav-bar { background: #161b22; border-top: 1px solid var(--border); }
+    th { background: #21262d; color: #8b949e; }
+    td { border-bottom: 1px solid var(--border); }
+    .day-header { background: #21262d; color: var(--text); }
+    .time-block { background: #21262d; }
+    .btn-back { background: #21262d; color: var(--text); }
+    .search-input { background: #0d1117; color: var(--text); border: 1px solid var(--border); }
+  }
 
-  /* Professional Cards */
-  .match-card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr 60px 1fr; align-items: center; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-  .team-img { width: 45px; height: 45px; object-fit: contain; }
-  .flag { width: 24px; height: 16px; border-radius: 2px; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
-  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: 500; }
+  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .screen { display: none; padding: 16px; } .screen.active { display: block; }
+  .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .screen-title { font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--primary); }
+  
+  .btn-back { background: var(--border); border: none; color: var(--primary); padding: 8px 14px; border-radius: 8px; font-weight: 500; cursor: pointer; }
+  
+  /* Loading Skeletons */
+  .skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 12px; }
+  @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .tile-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 10px; }
+  .tile { background: var(--card); border-left: 6px solid var(--primary); padding: 24px 20px; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.03); cursor: pointer; transition: transform 0.2s; }
+  .tile-info { display: flex; flex-direction: column; gap: 4px; }
+  .tile-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+  .tile-desc { font-size: 0.85rem; opacity: 0.7; }
+  
+  .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 -4px 10px rgba(0,0,0,0.03); }
+  .nav-btn { font-size: 11px; font-weight: 500; text-align: center; opacity: 0.6; cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: 25%; }
+  .nav-btn.active { color: var(--primary); opacity: 1; font-weight: 700; }
+
+  /* Sticky Table Layout */
+  .table-container { max-height: 60vh; overflow-y: auto; border-radius: 12px; background: var(--card); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 24px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  th { position: sticky; top: 0; padding: 12px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--border); background: #f8f9fa; z-index: 10; }
+  td { padding: 14px 10px; text-align: center; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; }
+  .squad-heading { font-size: 1.1rem; font-weight: 700; margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .color-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+  .search-input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; }
+  .day-header { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; background: var(--border); padding: 6px 12px; border-radius: 6px; }
+  .match-card { background: var(--card); padding: 16px 12px; border-radius: 12px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 65px 1fr; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+  .match-card.played { border-left: 4px solid #28A745; opacity: 0.85; }
+  .team-block { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  .team-name { font-size: 0.85rem; font-weight: 700; }
+  .team-img { width: 38px; height: 38px; object-fit: contain; }
+  .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; }
+  .time-block { text-align: center; font-size: 0.8rem; font-weight: 700; color: var(--primary); background: var(--border); padding: 6px 4px; border-radius: 8px; }
 </style>
 </head>
 <body>
 
-<div class="header">WC 2026 FAMILY TRACKER</div>
+<div class="header">WORLD CUP 2026™</div>
 
-<div id="screen-home" class="screen active">
+<div id="screen-loading" class="screen active">
   <div class="tile-grid">
-    <div class="tile" onclick="show('leaderboard')">🏆 Leaderboard</div>
-    <div class="tile" onclick="show('teams')">👥 My Teams</div>
-    <div class="tile" onclick="show('fixtures')">⚽ Matches</div>
+    <div class="skeleton" style="height: 100px;"></div>
+    <div class="skeleton" style="height: 100px;"></div>
+    <div class="skeleton" style="height: 100px;"></div>
   </div>
 </div>
 
-<div id="screen-leaderboard" class="screen"><h2>Standings</h2><div id="leaderboard-data"></div></div>
-<div id="screen-teams" class="screen"><h2>My Squads</h2><div id="team-tables"></div></div>
-<div id="screen-fixtures" class="screen"><h2>Matches</h2><div id="fixtures-data"></div></div>
+<div id="screen-home" class="screen">
+  <div class="tile-grid">
+    <div class="tile" onclick="show('leaderboard')">
+      <div class="tile-info"><span class="tile-title">🏆 Leaderboard</span><span class="tile-desc">Overall family standings</span></div>
+    </div>
+    <div class="tile" onclick="show('teams')">
+      <div class="tile-info"><span class="tile-title">👥 My Teams</span><span class="tile-desc">Individual squad performance</span></div>
+    </div>
+    <div class="tile" onclick="show('fixtures')">
+      <div class="tile-info"><span class="tile-title">⚽ Match Schedule</span><span class="tile-desc">Games & live search</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-leaderboard" class="screen">
+  <div class="screen-header"><h2 class="screen-title">Standings</h2><button class="btn-back" onclick="show('home')">← Back</button></div>
+  <div class="table-container"><div id="leaderboard-data"></div></div>
+</div>
+
+<div id="screen-teams" class="screen">
+  <div class="screen-header"><h2 class="screen-title">Family Squads</h2><button class="btn-back" onclick="show('home')">← Back</button></div>
+  <div id="team-tables"></div>
+</div>
+
+<div id="screen-fixtures" class="screen">
+  <div class="screen-header"><h2 class="screen-title">Fixtures</h2><button class="btn-back" onclick="show('home')">← Back</button></div>
+  <input type="text" id="matchSearch" class="search-input" placeholder="Search team or day..." onkeyup="filterMatches()">
+  <div id="fixtures-data"></div>
+</div>
 
 <div class="nav-bar">
-  <div class="nav-btn" onclick="show('home')">🏠<br>Home</div>
-  <div class="nav-btn" onclick="show('leaderboard')">🏆<br>Board</div>
-  <div class="nav-btn" onclick="show('teams')">👥<br>Teams</div>
-  <div class="nav-btn" onclick="show('fixtures')">⚽<br>Matches</div>
+  <div class="nav-btn" id="nav-home" onclick="show('home')"><span>🏠</span><span>Home</span></div>
+  <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span>🏆</span><span>Board</span></div>
+  <div class="nav-btn" id="nav-teams" onclick="show('teams')"><span>👥</span><span>Teams</span></div>
+  <div class="nav-btn" id="nav-fixtures" onclick="show('fixtures')"><span>⚽</span><span>Matches</span></div>
 </div>
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Italy":"it","Canada":"ca","Germany":"de","Brazil":"br","Scotland":"gb-sct","United States":"us","England":"gb-eng"}; // Add all your codes here
+  
+  const defaultOwners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Czechia":"Jemma","Canada":"Colman","Bosnia & Herzegovina":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Turkiye":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Sweden":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Iraq":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","DR Congo":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
+  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
+    const targetNav = document.getElementById('nav-'+id);
+    if(targetNav) targetNav.classList.add('active');
+    window.scrollTo(0,0);
   }
 
-  // Smart visual: Tries jersey URL, falls back to flag
+  function filterMatches() {
+    const q = document.getElementById('matchSearch').value.toLowerCase();
+    document.querySelectorAll('.match-card').forEach(c => {
+      c.style.display = c.innerText.toLowerCase().includes(q) ? 'grid' : 'none';
+    });
+  }
+
   function getTeamVisual(teamName, jerseyUrl) {
-    if (jerseyUrl && jerseyUrl.startsWith('http')) {
-      return `<img src="${jerseyUrl}" class="team-img" onerror="this.onerror=null; this.src='https://flagcdn.com/w40/${countryCodes[teamName] || 'xx'}.png'">`;
+    const flagUrl = `https://flagcdn.com/w40/${countryCodes[teamName] || 'xx'}.png`;
+    if (jerseyUrl && jerseyUrl.trim() !== "" && jerseyUrl.startsWith('http')) {
+      return `<img src="${jerseyUrl}" class="team-img" onerror="this.onerror=null; this.src='${flagUrl}'; this.className='flag';">`;
     }
-    return `<img src="https://flagcdn.com/w40/${countryCodes[teamName] || 'xx'}.png" class="flag">`;
+    return `<img src="${flagUrl}" class="flag">`;
+  }
+
+  function renderApp(data) {
+    const activeOwners = (data.owners && Object.keys(data.owners).length > 0) ? data.owners : defaultOwners;
+    
+    let stats = {}; Object.keys(activeOwners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
+    
+    if(data.scores && data.fixtures) {
+      Object.entries(data.scores).forEach(([id, s]) => {
+        let m = data.fixtures.find(x => x["Match #"] == id);
+        if(m && s.hS !== "" && s.aS !== "" && stats[m["Team 1"]] && stats[m["Team 2"]]) {
+          const h = parseInt(s.hS), a = parseInt(s.aS);
+          stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
+          stats[m["Team 1"]].gd += (h - a); stats[m["Team 2"]].gd += (a - h);
+          if(h > a) stats[m["Team 1"]].pts += 3; else if(a > h) stats[m["Team 2"]].pts += 3;
+          else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
+        }
+      });
+    }
+
+    let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
+    Object.keys(stats).forEach(t => { if(activeOwners[t]) { let p = activeOwners[t]; famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; } });
+    
+    document.getElementById('leaderboard-data').innerHTML = `<table><tr><th style="text-align:left">Family Member</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+      Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => `<tr><td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td><td>${s.p}</td><td>${s.gd}</td><td>${s.pts}</td></tr>`).join('') + `</table>`;
+
+    const tTables = document.getElementById('team-tables');
+    tTables.innerHTML = "";
+    ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
+      tTables.innerHTML += `<div class="squad-heading"><span class="color-indicator" style="background:var(--${p})"></span> ${p}'s Table</div><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+        Object.keys(activeOwners).filter(t => activeOwners[t] == p).map(t => `<tr><td style="text-align:left; font-weight:500;">${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
+    });
+
+    const fGrid = document.getElementById('fixtures-data');
+    fGrid.innerHTML = "";
+    let lastDate = "";
+    
+    if(data.fixtures) {
+      data.fixtures.forEach(m => {
+        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+        if(isNaN(d.getTime())) return;
+        let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+        let timeStr = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+        
+        if(dateHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
+        
+        const isPlayed = data.scores && data.scores[m["Match #"]] && data.scores[m["Match #"]].hS !== "";
+        
+        fGrid.innerHTML += `
+          <div class="match-card ${isPlayed ? 'played' : ''}">
+            <div class="team-block">${getTeamVisual(m["Team 1"], m["JerseyURL1"])}<span class="team-name">${m["Team 1"]}</span></div>
+            <div class="time-block">${isPlayed ? `${data.scores[m["Match #"]].hS} - ${data.scores[m["Match #"]].aS}` : `${timeStr}<br>BST`}</div>
+            <div class="team-block">${getTeamVisual(m["Team 2"], m["JerseyURL2"])}<span class="team-name">${m["Team 2"]}</span></div>
+          </div>`;
+      });
+    }
   }
 
   async function init() {
-    const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
-    const [fixtures] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures")]);
+    const cached = localStorage.getItem('wc26_data');
+    if (cached) { renderApp(JSON.parse(cached)); show('home'); }
     
-    const fGrid = document.getElementById('fixtures-data');
-    fixtures.forEach(m => {
-      // Assuming your Google Sheet has a column 'JerseyURL'
-      fGrid.innerHTML += `<div class="match-card">
-        <div style="text-align:center">${getTeamVisual(m["Team 1"], m["JerseyURL"])}<br><b>${m["Team 1"]}</b></div>
-        <div style="text-align:center; font-size:10px">VS</div>
-        <div style="text-align:center">${getTeamVisual(m["Team 2"], m["JerseyURL2"])}<br><b>${m["Team 2"]}</b></div>
-      </div>`;
-    });
+    const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
+    try {
+      const data = await jsonp(SCRIPT_URL + "?action=getAll");
+      localStorage.setItem('wc26_data', JSON.stringify(data));
+      renderApp(data);
+      if(!cached) show('home');
+    } catch(e) { console.error("Data fetch failed", e); }
   }
+  
   init();
 </script>
 </body>
