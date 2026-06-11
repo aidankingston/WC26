@@ -6,26 +6,24 @@
 <title>WC26 | Family Tracker</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
-  :root { --primary: #002366; --bg: #f8f9fa; --card: #ffffff; --text: #1a1a1a; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 80px; }
+  :root { --primary: #002366; --bg: #f8f9fa; --card: #ffffff; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
   
-  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: 700; }
+  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-weight: 700; }
   .screen { display: none; padding: 15px; } .screen.active { display: block; }
   
   /* Navigation */
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
-  .nav-btn { font-size: 10px; text-align: center; color: #666; cursor: pointer; }
+  .nav-btn { font-size: 10px; text-align: center; color: #666; }
   .nav-btn.active { color: var(--primary); font-weight: 700; }
 
-  /* Tiles & Cards */
-  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: 500; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-  .match-card { background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  /* Professional Cards */
+  .match-card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr 60px 1fr; align-items: center; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+  .team-img { width: 45px; height: 45px; object-fit: contain; }
+  .flag { width: 24px; height: 16px; border-radius: 2px; }
   
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-  th { background: #f0f0f0; padding: 10px; font-size: 12px; }
-  td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 13px; }
-  .flag { width: 24px; height: 16px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -37,29 +35,12 @@
     <div class="tile" onclick="show('leaderboard')">🏆 Leaderboard</div>
     <div class="tile" onclick="show('teams')">👥 My Teams</div>
     <div class="tile" onclick="show('fixtures')">⚽ Matches</div>
-    <div class="tile" onclick="show('map')">🗺️ Site Map</div>
   </div>
 </div>
 
-<div id="screen-leaderboard" class="screen">
-  <h2>Family Standings</h2>
-  <div id="leaderboard-data"></div>
-</div>
-
-<div id="screen-teams" class="screen">
-  <h2>My Teams</h2>
-  <div id="team-tables"></div>
-</div>
-
-<div id="screen-fixtures" class="screen">
-  <h2>Match Schedule</h2>
-  <div id="fixtures-data"></div>
-</div>
-
-<div id="screen-map" class="screen">
-  <h2>Site Map</h2>
-  <ul><li><a onclick="show('home')">Dashboard</a></li><li><a onclick="show('leaderboard')">Leaderboard</a></li><li><a onclick="show('teams')">My Teams</a></li><li><a onclick="show('fixtures')">Matches</a></li></ul>
-</div>
+<div id="screen-leaderboard" class="screen"><h2>Standings</h2><div id="leaderboard-data"></div></div>
+<div id="screen-teams" class="screen"><h2>My Squads</h2><div id="team-tables"></div></div>
+<div id="screen-fixtures" class="screen"><h2>Matches</h2><div id="fixtures-data"></div></div>
 
 <div class="nav-bar">
   <div class="nav-btn" onclick="show('home')">🏠<br>Home</div>
@@ -70,38 +51,32 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Italy":"Jemma","Canada":"Colman","Germany":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Nigeria":"Aidan","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Spain":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Poland":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","Chile":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
-  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Italy":"it","Canada":"ca","Germany":"de","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Nigeria":"ng","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Spain":"es","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Poland":"pl","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","Chile":"cl","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
+  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Italy":"it","Canada":"ca","Germany":"de","Brazil":"br","Scotland":"gb-sct","United States":"us","England":"gb-eng"}; // Add all your codes here
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
   }
 
-  function getFlag(c) { return `<img src="https://flagcdn.com/w40/${countryCodes[c] || 'xx'}.png" class="flag">`; }
+  // Smart visual: Tries jersey URL, falls back to flag
+  function getTeamVisual(teamName, jerseyUrl) {
+    if (jerseyUrl && jerseyUrl.startsWith('http')) {
+      return `<img src="${jerseyUrl}" class="team-img" onerror="this.onerror=null; this.src='https://flagcdn.com/w40/${countryCodes[teamName] || 'xx'}.png'">`;
+    }
+    return `<img src="https://flagcdn.com/w40/${countryCodes[teamName] || 'xx'}.png" class="flag">`;
+  }
 
   async function init() {
     const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
-    const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
+    const [fixtures] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures")]);
     
-    let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
-    Object.entries(scores).forEach(([id, s]) => {
-      let m = fixtures.find(x => x["Match #"] == id);
-      if(m && s.hS !== "" && s.aS !== "") {
-        stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
-        stats[m["Team 1"]].gd += (s.hS - s.aS); stats[m["Team 2"]].gd += (s.aS - s.hS);
-        if(s.hS > s.aS) stats[m["Team 1"]].pts += 3; else if(s.aS > s.hS) stats[m["Team 2"]].pts += 3;
-        else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
-      }
-    });
-
     const fGrid = document.getElementById('fixtures-data');
     fixtures.forEach(m => {
-      let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+      // Assuming your Google Sheet has a column 'JerseyURL'
       fGrid.innerHTML += `<div class="match-card">
-        <div>${getFlag(m["Team 1"])}<b>${m["Team 1"]}</b></div>
-        <div style="font-size:10px; text-align:center">${d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}<br><b>${d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} BST</b></div>
-        <div style="text-align:right"><b>${m["Team 2"]}</b>${getFlag(m["Team 2"])}</div>
+        <div style="text-align:center">${getTeamVisual(m["Team 1"], m["JerseyURL"])}<br><b>${m["Team 1"]}</b></div>
+        <div style="text-align:center; font-size:10px">VS</div>
+        <div style="text-align:center">${getTeamVisual(m["Team 2"], m["JerseyURL2"])}<br><b>${m["Team 2"]}</b></div>
       </div>`;
     });
   }
