@@ -9,13 +9,13 @@
   :root { --primary: #002366; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
   .header { background: var(--primary); color: white; padding: 25px; text-align: center; }
-  .grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
-  .tile { background: var(--primary); color: white; padding: 40px 20px; border-radius: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; padding: 20px; }
+  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   .screen { display: none; padding: 15px; } .screen.active { display: block; }
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
-  th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; font-size: 14px; }
-  .day-header { font-size: 1.2rem; font-weight: bold; margin: 25px 0 10px; color: var(--primary); }
-  .match-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+  th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; font-size: 13px; }
+  .day-header { font-size: 1.1rem; font-weight: bold; margin: 25px 0 10px; color: var(--primary); border-bottom: 2px solid var(--primary); }
+  .match-card { background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--primary); }
 </style>
 </head>
 <body>
@@ -23,15 +23,16 @@
 
 <div id="screen-home" class="screen active">
   <div class="grid">
-    <div class="tile" onclick="show('leaderboard')">🏆 LEADERBOARD</div>
-    <div class="tile" onclick="show('teams')">👥 MY TEAMS</div>
-    <div class="tile" onclick="show('fixtures')">⚽ MATCH SCHEDULE</div>
+    <div class="tile" onclick="show('leaderboard')">🏆 Leaderboard</div>
+    <div class="tile" onclick="show('teams')">👥 My Teams</div>
+    <div class="tile" onclick="show('fixtures')">⚽ Schedule</div>
   </div>
 </div>
 
 <div id="screen-leaderboard" class="screen">
   <button onclick="show('home')">← Back</button>
-  <h2>Tournament Standings</h2><div id="leaderboard-data"></div>
+  <h2>Family Standings</h2>
+  <div id="leaderboard-data"></div>
 </div>
 
 <div id="screen-teams" class="screen">
@@ -46,7 +47,6 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  // Updated list with your requested real team names
   const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Italy":"Jemma","Canada":"Colman","Germany":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Nigeria":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Spain":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Poland":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","Chile":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
 
   function show(id) {
@@ -59,34 +59,44 @@
   async function init() {
     const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
     
-    // 1. Leaderboard & Tables
+    // 1. Calculate Stats
     let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
     Object.entries(scores).forEach(([id, s]) => {
       let m = fixtures.find(x => x["Match #"] == id);
       if(m && s.hS !== "" && s.aS !== "") {
         stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
-        stats[m["Team 1"]].gd += (s.hS - s.aS); stats[m["Team 2"]].gd += (s.aS - s.hS);
+        stats[m["Team 1"]].gd += (parseInt(s.hS) - parseInt(s.aS)); stats[m["Team 2"]].gd += (parseInt(s.aS) - parseInt(s.hS));
         if(s.hS > s.aS) stats[m["Team 1"]].pts += 3; else if(s.aS > s.hS) stats[m["Team 2"]].pts += 3;
         else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
       }
     });
 
+    // 2. Leaderboard (Family Standings)
+    let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
+    Object.keys(stats).forEach(t => {
+      let p = owners[t];
+      famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts;
+    });
+    
+    document.getElementById('leaderboard-data').innerHTML = `<table><tr><th>Family Member</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+      Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => `<tr><td>${n}</td><td>${s.p}</td><td>${s.gd}</td><td>${s.pts}</td></tr>`).join('') + `</table>`;
+
+    // 3. Team Squads
     const tTables = document.getElementById('team-tables');
     ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
       tTables.innerHTML += `<h3>${p}'s Squad</h3><table><tr><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
         Object.keys(owners).filter(t => owners[t] == p).map(t => `<tr><td>${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table>`;
     });
 
-    // 2. Fixtures with Date Grouping
+    // 4. Fixtures
     const fGrid = document.getElementById('fixtures-data');
     let lastDate = "";
     fixtures.forEach(m => {
-      let rawDate = m["Date & Time (US EDT/UTC-4)"]; // Expects "June 11, 2026, 14:00"
-      let d = new Date(rawDate);
-      let dayHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+      let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+      let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
       let time = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
       
-      if(dayHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dayHeader}</div>`; lastDate = dayHeader; }
+      if(dateHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
       fGrid.innerHTML += `<div class="match-card"><b>${m["Team 1"]} vs ${m["Team 2"]}</b><br><small>${time} BST</small></div>`;
     });
   }
