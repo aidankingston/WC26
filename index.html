@@ -6,30 +6,26 @@
 <title>World Cup 26™ Family Edition</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
-  :root { --primary: #111424; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  body { font-family: 'Outfit', sans-serif; background: #F4F6F9; margin: 0; padding-bottom: 80px; }
+  :root { --primary: #111424; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
   .app-bar { background: var(--primary); color: white; height: 60px; display: flex; align-items: center; justify-content: center; position: fixed; top: 0; width: 100%; z-index: 1000; }
-  .app-content { margin-top: 70px; padding: 10px; }
+  .app-content { margin-top: 70px; padding: 15px; }
   .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 10px; border-left: 5px solid #ddd; }
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 60px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 2000; }
-  .nav-btn { color: #888; font-size: 12px; cursor: pointer; text-align: center; }
+  .nav-btn { color: #888; text-align: center; cursor: pointer; font-size: 12px; }
   .nav-btn.active { color: white; }
   .screen { display: none; } .screen.active { display: block; }
   .score-input { width: 35px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
-  .badge { font-size: 9px; padding: 2px 5px; border-radius: 8px; color: white; font-weight: bold; }
 </style>
 </head>
 <body>
-<div class="app-bar"><h1>WC 26</h1></div>
+<div class="app-bar"><h1>WC 26 Tracker</h1></div>
 <div class="app-content">
   <main id="screen-board" class="screen active">
     <h2>🏆 Leaderboard</h2><div id="leaderboard"></div>
     <h2>👥 Family Teams</h2><div id="team-tables"></div>
   </main>
-  <main id="screen-fixtures" class="screen">
-    <div id="calendar-nav" style="display:flex; overflow-x:auto; gap:10px; padding-bottom:10px;"></div>
-    <div id="fixtures-grid"></div>
-  </main>
+  <main id="screen-fixtures" class="screen"><div id="fixtures-grid"></div></main>
 </div>
 <div class="nav-bar">
   <div class="nav-btn active" onclick="nav('board', this)">🏆<br>Board</div>
@@ -52,34 +48,32 @@
   async function init() {
     const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
     
-    // Convert EDT to BST (+5 hours)
-    fixtures.forEach(m => {
-      // Logic: Extract time, add 5 hours, handle AM/PM shift
-      m.bstTime = m["Date & Time (US EDT/UTC-4)"]; // Basic implementation
-    });
-
-    // Render Teams
-    const teamsGrid = document.getElementById('team-tables');
+    // Team Tables
+    const tGrid = document.getElementById('team-tables');
     const myTeams = {};
     Object.entries(owners).forEach(([t, o]) => { if(!myTeams[o]) myTeams[o] = []; myTeams[o].push(t); });
     Object.entries(myTeams).forEach(([o, t]) => {
-      teamsGrid.innerHTML += `<div class="card" style="border-left-color:var(--${o})"><b>${o}</b><br><small>${t.join(', ')}</small></div>`;
+      tGrid.innerHTML += `<div class="card" style="border-left-color:var(--${o})"><b>${o}</b><br><small>${t.join(', ')}</small></div>`;
     });
 
-    // Render Fixtures
-    const grid = document.getElementById('fixtures-grid');
+    // Fixtures
+    const fGrid = document.getElementById('fixtures-grid');
     fixtures.forEach(m => {
-      grid.innerHTML += `<div class="card">
-        <div style="font-size:9px; color:#888">${m.Stage} | ${m.bstTime}</div>
+      fGrid.innerHTML += `<div class="card">
+        <div style="font-size:9px; color:#888">${m.Stage} | ${m["Date & Time (US EDT/UTC-4)"]} | ${m.Location}</div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span>${m["Team 1"]}</span>
-          <input class="score-input" value="${scores[m["Match #"]]?.hS||''}">
+          <input class="score-input" value="${scores[m["Match #"]]?.hS||''}" onchange="updateScore('${m["Match #"]}', true, this.value)">
           -
-          <input class="score-input" value="${scores[m["Match #"]]?.aS||''}">
+          <input class="score-input" value="${scores[m["Match #"]]?.aS||''}" onchange="updateScore('${m["Match #"]}', false, this.value)">
           <span>${m["Team 2"]}</span>
         </div>
       </div>`;
     });
+  }
+
+  function updateScore(id, isH, val) {
+    fetch(SCRIPT_URL, { method: 'POST', body: new URLSearchParams({action:'update', id:id, h:isH?val:'', a:!isH?val:''}) });
   }
   init();
 </script>
