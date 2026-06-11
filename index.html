@@ -6,16 +6,16 @@
 <title>World Cup 26™ Dashboard</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
-  :root { --primary: #111424; --bg: #F4F6F9; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 20px; }
+  :root { --primary: #111424; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
   .header { background: var(--primary); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
-  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: red; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: green; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
-  .tile { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; border: 2px solid transparent; }
-  .tile:active { border-color: var(--primary); }
+  .tile { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
   .screen { display: none; padding: 15px; }
   .screen.active { display: block; }
   .card { background: white; padding: 12px; margin-bottom: 10px; border-radius: 10px; border-left: 5px solid #ddd; }
+  .score-input { width: 40px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -49,6 +49,7 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
+  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","UEFA D":"Jemma","Canada":"Colman","UEFA A":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","UEFA C":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","UEFA B":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","FIFA 2":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","FIFA 1":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -58,21 +59,29 @@
   function jsonp(url) { return new Promise(r => { const cb = 'c'+Date.now(); window[cb] = (d) => { delete window[cb]; r(d); }; const s = document.createElement('script'); s.src = `${url}&callback=${cb}`; document.body.appendChild(s); }); }
 
   async function init() {
-    try {
-      const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
-      document.getElementById('status').style.background = 'green';
-      
-      // Render Fixtures
-      const fGrid = document.getElementById('fixtures-data');
-      fixtures.forEach(m => {
-        fGrid.innerHTML += `<div class="card">
-          <small>${m["Date & Time (US EDT/UTC-4)"]} | ${m.Location}</small>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b>${m["Team 1"]}</b> vs <b>${m["Team 2"]}</b>
-          </div>
-        </div>`;
-      });
-    } catch(e) { console.error(e); }
+    const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
+    
+    // Team Tables
+    const tGrid = document.getElementById('team-data');
+    const myTeams = {};
+    Object.entries(owners).forEach(([t, o]) => { if(!myTeams[o]) myTeams[o] = []; myTeams[o].push(t); });
+    Object.entries(myTeams).forEach(([o, t]) => {
+      tGrid.innerHTML += `<div class="card" style="border-left-color:var(--${o})"><b>${o}</b><br><small>${t.join(', ')}</small></div>`;
+    });
+
+    // Fixtures
+    const fGrid = document.getElementById('fixtures-data');
+    fixtures.forEach(m => {
+      fGrid.innerHTML += `<div class="card">
+        <div style="font-size:9px; color:#888">${m.Stage} | ${m.Location}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>${m["Team 1"]}</span>
+          <input class="score-input" value="${scores[m["Match #"]]?.hS||''}"> - 
+          <input class="score-input" value="${scores[m["Match #"]]?.aS||''}">
+          <span>${m["Team 2"]}</span>
+        </div>
+      </div>`;
+    });
   }
   init();
 </script>
