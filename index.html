@@ -6,34 +6,32 @@
 <title>World Cup 26™ Dashboard</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
-  :root { --primary: #111424; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+  :root { --primary: #002366; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
-  .header { background: var(--primary); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
-  .tile { background: white; padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
+  .header { background: var(--primary); color: white; padding: 25px; text-align: center; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
+  .tile { background: var(--primary); color: white; padding: 40px 20px; border-radius: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
   .screen { display: none; padding: 15px; } .screen.active { display: block; }
   table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
-  th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 13px; }
-  .day-header { font-weight: bold; margin: 20px 0 10px; color: var(--primary); border-bottom: 2px solid var(--primary); }
+  th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; font-size: 14px; }
+  .day-header { font-size: 1.2rem; font-weight: bold; margin: 25px 0 10px; color: var(--primary); }
+  .match-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); }
 </style>
 </head>
 <body>
-<div class="header">
-  <h2 style="margin:0">WC 26 Tracker</h2>
-  <div id="status" style="width:10px;height:10px;border-radius:50%;background:green"></div>
-</div>
+<div class="header"><h1>WC 26 Tracker</h1></div>
 
 <div id="screen-home" class="screen active">
   <div class="grid">
-    <div class="tile" onclick="show('leaderboard')">🏆<br>Leaderboard</div>
-    <div class="tile" onclick="show('teams')">👥<br>My Teams</div>
-    <div class="tile" onclick="show('fixtures')">⚽<br>Matches</div>
+    <div class="tile" onclick="show('leaderboard')">🏆 LEADERBOARD</div>
+    <div class="tile" onclick="show('teams')">👥 MY TEAMS</div>
+    <div class="tile" onclick="show('fixtures')">⚽ MATCH SCHEDULE</div>
   </div>
 </div>
 
 <div id="screen-leaderboard" class="screen">
   <button onclick="show('home')">← Back</button>
-  <h2>Leaderboard</h2><div id="leaderboard-data"></div>
+  <h2>Tournament Standings</h2><div id="leaderboard-data"></div>
 </div>
 
 <div id="screen-teams" class="screen">
@@ -48,7 +46,8 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","UEFA D":"Jemma","Canada":"Colman","UEFA A":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","UEFA C":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","UEFA B":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","FIFA 2":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","FIFA 1":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
+  // Updated list with your requested real team names
+  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Italy":"Jemma","Canada":"Colman","Germany":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Nigeria":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Spain":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Poland":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","Chile":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -67,27 +66,28 @@
       if(m && s.hS !== "" && s.aS !== "") {
         stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
         stats[m["Team 1"]].gd += (s.hS - s.aS); stats[m["Team 2"]].gd += (s.aS - s.hS);
-        if(s.hS > s.aS) stats[m["Team 1"]].pts += 3;
-        else if(s.aS > s.hS) stats[m["Team 2"]].pts += 3;
+        if(s.hS > s.aS) stats[m["Team 1"]].pts += 3; else if(s.aS > s.hS) stats[m["Team 2"]].pts += 3;
         else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
       }
     });
 
     const tTables = document.getElementById('team-tables');
-    const family = ["Zelda", "Colman", "Connie", "Jemma", "Aidan"];
-    family.forEach(person => {
-      tTables.innerHTML += `<h3>${person}'s Teams</h3><table><tr><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-        Object.keys(owners).filter(t => owners[t] == person).map(t => 
-        `<tr><td>${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table>`;
+    ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
+      tTables.innerHTML += `<h3>${p}'s Squad</h3><table><tr><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+        Object.keys(owners).filter(t => owners[t] == p).map(t => `<tr><td>${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table>`;
     });
 
-    // 2. Chronological Fixtures
+    // 2. Fixtures with Date Grouping
     const fGrid = document.getElementById('fixtures-data');
     let lastDate = "";
     fixtures.forEach(m => {
-      let d = m["Date & Time (US EDT/UTC-4)"].split(', at')[0];
-      if(d !== lastDate) { fGrid.innerHTML += `<div class="day-header">${d}</div>`; lastDate = d; }
-      fGrid.innerHTML += `<div class="card"><b>${m["Team 1"]} vs ${m["Team 2"]}</b><br><small>${m.Location}</small></div>`;
+      let rawDate = m["Date & Time (US EDT/UTC-4)"]; // Expects "June 11, 2026, 14:00"
+      let d = new Date(rawDate);
+      let dayHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+      let time = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      
+      if(dayHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dayHeader}</div>`; lastDate = dayHeader; }
+      fGrid.innerHTML += `<div class="match-card"><b>${m["Team 1"]} vs ${m["Team 2"]}</b><br><small>${time} BST</small></div>`;
     });
   }
   init();
