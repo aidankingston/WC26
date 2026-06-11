@@ -21,7 +21,7 @@
   * { box-sizing: border-box; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
-  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; user-select: none; }
   .screen { display: none; padding: 16px; } .screen.active { display: block; }
   .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .screen-title { font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--primary); }
@@ -34,7 +34,7 @@
   .tile-desc { font-size: 0.85rem; opacity: 0.7; }
   
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); background: var(--primary); }
-  .nav-btn { font-size: 11px; font-weight: 500; text-align: center; color: rgba(255, 255, 255, 0.6); cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: 25%; }
+  .nav-btn { font-size: 11px; font-weight: 500; text-align: center; color: rgba(255, 255, 255, 0.6); cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: 20%; }
   .nav-btn.active { color: #ffffff; opacity: 1; font-weight: 700; }
 
   .table-container { max-height: 60vh; overflow-y: auto; border-radius: 12px; background: var(--card); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 24px; }
@@ -50,18 +50,22 @@
   .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; margin-bottom: 5px;}
   .time-block { font-size: 0.8rem; font-weight: 700; color: var(--primary); background: var(--border); padding: 6px 4px; border-radius: 8px; }
 
-  /* Transfer Specific Styles */
   .swap-card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 12px; margin-bottom: 12px; text-align: center; }
   .swap-teams { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
   .swap-side { width: 40%; font-weight: 700; font-size: 0.9rem; }
   .swap-rank { font-size: 0.75rem; color: #888; font-weight: 400; margin-top: 4px; }
+  .swap-owner { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; }
   .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+  .diag-box { background: #111; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; font-size: 0.85rem; margin-top: 10px; overflow-x: auto;}
+  .diag-status.good { color: #0f0; }
+  .diag-status.bad { color: #f00; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<div class="header">WORLD CUP 2026™</div>
+<div class="header" onclick="triggerDevMode()">WORLD CUP 2026™</div>
 
 <div id="screen-home" class="screen active">
   <div class="tile-grid">
@@ -113,22 +117,42 @@
   <div id="swap-results" style="margin-top: 20px;"></div>
 </div>
 
+<div id="screen-diagnostics" class="screen">
+  <div class="screen-header"><h2 class="screen-title">System Diagnostics</h2><button class="btn-back" onclick="show('home')">←</button></div>
+  <p style="font-size:0.85rem">Use this screen to verify your HTML and Apps Script are communicating.</p>
+  <button class="btn-back" style="width:100%; margin-bottom:10px; text-align:center" onclick="forceHardRefresh()">Force Fetch from Server</button>
+  <div id="diag-console" class="diag-box">Waiting for data...</div>
+</div>
+
 <div class="nav-bar">
-  <div class="nav-btn" onclick="show('home')"><span style="font-size: 1.2rem;">🏠</span><span>Home</span></div>
-  <div class="nav-btn" onclick="show('leaderboard')"><span style="font-size: 1.2rem;">🏆</span><span>Board</span></div>
-  <div class="nav-btn" onclick="show('teams')"><span style="font-size: 1.2rem;">👥</span><span>Teams</span></div>
-  <div class="nav-btn" onclick="show('fixtures')"><span style="font-size: 1.2rem;">⚽</span><span>Matches</span></div>
+  <div class="nav-btn" id="nav-home" onclick="show('home')"><span style="font-size: 1.2rem;">🏠</span><span>Home</span></div>
+  <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span style="font-size: 1.2rem;">🏆</span><span>Board</span></div>
+  <div class="nav-btn" id="nav-teams" onclick="show('teams')"><span style="font-size: 1.2rem;">👥</span><span>Teams</span></div>
+  <div class="nav-btn" id="nav-fixtures" onclick="show('fixtures')"><span style="font-size: 1.2rem;">⚽</span><span>Matches</span></div>
+  <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span style="font-size: 1.2rem;">🔄</span><span>Swap</span></div>
 </div>
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
+  const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia":"ba","Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   let appData = {};
+  let devClickCount = 0;
+
+  function triggerDevMode() {
+    devClickCount++;
+    if (devClickCount >= 3) {
+      devClickCount = 0;
+      show('diagnostics');
+    }
+  }
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
+    const targetNav = document.getElementById('nav-'+id);
+    if(targetNav) targetNav.classList.add('active');
     window.scrollTo(0,0);
   }
 
@@ -139,11 +163,26 @@
 
   function getVisual(t) { return `<img src="https://flagcdn.com/w40/${countryCodes[t] || 'xx'}.png" class="flag">`; }
 
+  function updateDiagnostics(data) {
+    const fixCount = data.fixtures ? data.fixtures.length : 0;
+    const scoreCount = data.scores ? Object.keys(data.scores).length : 0;
+    const ownerCount = data.owners ? Object.keys(data.owners).length : 0;
+    const rankCount = data.rankings ? Object.keys(data.rankings).length : 0;
+    
+    document.getElementById('diag-console').innerHTML = `
+      > Last Sync: ${new Date().toLocaleTimeString()}<br><br>
+      > Fixtures : <span class="${fixCount > 0 ? 'diag-status good' : 'diag-status bad'}">${fixCount} loaded</span><br>
+      > Scores   : <span class="diag-status good">${scoreCount} loaded</span><br>
+      > Config   : <span class="${ownerCount >= 48 ? 'diag-status good' : 'diag-status bad'}">${ownerCount} owners</span><br>
+      > Rankings : <span class="${rankCount >= 48 ? 'diag-status good' : 'diag-status bad'}">${rankCount} teams</span><br><br>
+      ${rankCount === 0 ? '> ERROR: Transfer Market disabled. Check "Rankings" sheet spelling.' : '> Transfer Market: ONLINE'}
+    `;
+  }
+
   function renderApp() {
     if (!appData.owners) return;
     const owners = appData.owners;
     
-    // Calculate Stats
     let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
     if(appData.scores && appData.fixtures) {
       Object.entries(appData.scores).forEach(([id, s]) => {
@@ -158,49 +197,50 @@
       });
     }
 
-    // Render Leaderboard
     let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
     Object.keys(stats).forEach(t => { if(owners[t]) { let p = owners[t]; famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; } });
     
     document.getElementById('leaderboard-data').innerHTML = `<table><tr><th style="text-align:left">Family Member</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
       Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => `<tr><td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td><td>${s.p}</td><td>${s.gd}</td><td>${s.pts}</td></tr>`).join('') + `</table>`;
 
-    // Render Teams
     const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
     ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
       tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
         Object.keys(owners).filter(t => owners[t] == p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
     });
 
-    // Render Fixtures
     const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
     let lastDate = "";
     if(appData.fixtures) {
       appData.fixtures.forEach(m => {
         let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
         if(isNaN(d.getTime())) return;
-        d.setHours(d.getHours() + 5); // Convert to BST
+        d.setHours(d.getHours() + 5); 
         let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
         if(dateHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
         
         const isPlayed = appData.scores && appData.scores[m["Match #"]] && appData.scores[m["Match #"]].hS !== "";
+        const owner1 = owners[m["Team 1"]] || "Unassigned";
+        const owner2 = owners[m["Team 2"]] || "Unassigned";
+
         fGrid.innerHTML += `<div class="match-card">
-            <div>${getVisual(m["Team 1"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 1"]}</span></div>
+            <div>${getVisual(m["Team 1"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 1"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner1})</span></div>
             <div class="time-block">${isPlayed ? `${appData.scores[m["Match #"]].hS} - ${appData.scores[m["Match #"]].aS}` : `${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}<br>BST`}</div>
-            <div>${getVisual(m["Team 2"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 2"]}</span></div>
+            <div>${getVisual(m["Team 2"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 2"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner2})</span></div>
           </div>`;
       });
     }
   }
 
-  // --- TRANSFERS LOGIC ---
   function calcSwaps() {
     const p1 = document.getElementById('t-person1').value;
     const p2 = document.getElementById('t-person2').value;
     const res = document.getElementById('swap-results');
     
     if(!p1 || !p2 || p1 === p2) { res.innerHTML = ""; return; }
-    if(!appData.rankings) { res.innerHTML = "<i>Rankings not found in database. Check Google Sheet.</i>"; return; }
+    if(!appData.rankings || Object.keys(appData.rankings).length === 0) { 
+      res.innerHTML = "<i>Rankings data missing. Open Diagnostics to test connection.</i>"; return; 
+    }
 
     const p1Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p1);
     const p2Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p2);
@@ -221,9 +261,15 @@
     res.innerHTML = validSwaps.map(s => `
       <div class="swap-card">
         <div class="swap-teams">
-          <div class="swap-side">${getVisual(s.t1)}<br>${s.t1}<div class="swap-rank">Rank: ${s.r1}</div></div>
+          <div class="swap-side">
+            <div class="swap-owner" style="color: var(--${p1});">${p1}</div>
+            ${getVisual(s.t1)}<br>${s.t1}<div class="swap-rank">Rank: ${s.r1}</div>
+          </div>
           <div class="swap-icon">🔄</div>
-          <div class="swap-side">${getVisual(s.t2)}<br>${s.t2}<div class="swap-rank">Rank: ${s.r2}</div></div>
+          <div class="swap-side">
+            <div class="swap-owner" style="color: var(--${p2});">${p2}</div>
+            ${getVisual(s.t2)}<br>${s.t2}<div class="swap-rank">Rank: ${s.r2}</div>
+          </div>
         </div>
         <button class="btn-swap" onclick="executeSwap('${s.t1}', '${p1}', '${s.t2}', '${p2}')">Confirm Swap</button>
       </div>
@@ -231,37 +277,43 @@
   }
 
   function executeSwap(t1, p1, t2, p2) {
-    if(!confirm(`Are you sure you want to swap ${t1} for ${t2}?`)) return;
-    
-    // Optimistic UI Update (Update local state instantly)
+    if(!confirm(`Swap ${t1} for ${t2}?`)) return;
     appData.owners[t1] = p2;
     appData.owners[t2] = p1;
     localStorage.setItem('wc26_data', JSON.stringify(appData));
-    
-    // Re-render everything
     renderApp();
-    calcSwaps(); // refresh list
+    calcSwaps(); 
     alert('Transfer Complete!');
+    fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 }) });
+  }
 
-    // Send to Google Sheet in background
-    fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: new URLSearchParams({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 })
+  function forceHardRefresh() {
+    document.getElementById('diag-console').innerHTML = "> Fetching live data from Google Servers...";
+    const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
+    jsonp(SCRIPT_URL + "?action=getAll").then(data => {
+      appData = data;
+      localStorage.setItem('wc26_data', JSON.stringify(appData));
+      updateDiagnostics(appData);
+      renderApp();
+    }).catch(e => {
+      document.getElementById('diag-console').innerHTML = "> ERROR: Connection failed. Check script URL.";
     });
   }
 
   async function init() {
     const cached = localStorage.getItem('wc26_data');
-    if (cached) { appData = JSON.parse(cached); renderApp(); }
-    
+    if (cached) { 
+      appData = JSON.parse(cached); 
+      renderApp(); 
+      updateDiagnostics(appData);
+    }
     const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
     try {
       appData = await jsonp(SCRIPT_URL + "?action=getAll");
       localStorage.setItem('wc26_data', JSON.stringify(appData));
+      updateDiagnostics(appData);
       renderApp();
-    } catch(e) { console.error("Fetch failed", e); }
+    } catch(e) {}
   }
   
   init();
