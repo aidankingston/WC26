@@ -2,102 +2,107 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>World Cup 26™ Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WC26 | Family Tracker</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
-  :root { --primary: #002366; --bg: #F4F6F9; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
-  .header { background: var(--primary); color: white; padding: 25px; text-align: center; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; padding: 20px; }
-  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
+  :root { --primary: #002366; --bg: #f8f9fa; --card: #ffffff; --text: #1a1a1a; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 80px; }
+  
+  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: 700; }
   .screen { display: none; padding: 15px; } .screen.active { display: block; }
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-  th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; font-size: 13px; }
-  .day-header { font-size: 1.1rem; font-weight: bold; margin: 25px 0 10px; color: var(--primary); border-bottom: 2px solid var(--primary); }
-  .match-card { background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--primary); }
+  
+  /* Navigation */
+  .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+  .nav-btn { font-size: 10px; text-align: center; color: #666; cursor: pointer; }
+  .nav-btn.active { color: var(--primary); font-weight: 700; }
+
+  /* Tiles & Cards */
+  .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { background: var(--primary); color: white; padding: 20px; border-radius: 16px; text-align: center; font-weight: 500; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  .match-card { background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  th { background: #f0f0f0; padding: 10px; font-size: 12px; }
+  td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 13px; }
+  .flag { width: 24px; height: 16px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
 </style>
 </head>
 <body>
-<div class="header"><h1>WC 26 Tracker</h1></div>
+
+<div class="header">WC 2026 FAMILY TRACKER</div>
 
 <div id="screen-home" class="screen active">
-  <div class="grid">
+  <div class="tile-grid">
     <div class="tile" onclick="show('leaderboard')">🏆 Leaderboard</div>
     <div class="tile" onclick="show('teams')">👥 My Teams</div>
-    <div class="tile" onclick="show('fixtures')">⚽ Schedule</div>
+    <div class="tile" onclick="show('fixtures')">⚽ Matches</div>
+    <div class="tile" onclick="show('map')">🗺️ Site Map</div>
   </div>
 </div>
 
 <div id="screen-leaderboard" class="screen">
-  <button onclick="show('home')">← Back</button>
   <h2>Family Standings</h2>
   <div id="leaderboard-data"></div>
 </div>
 
 <div id="screen-teams" class="screen">
-  <button onclick="show('home')">← Back</button>
+  <h2>My Teams</h2>
   <div id="team-tables"></div>
 </div>
 
 <div id="screen-fixtures" class="screen">
-  <button onclick="show('home')">← Back</button>
+  <h2>Match Schedule</h2>
   <div id="fixtures-data"></div>
+</div>
+
+<div id="screen-map" class="screen">
+  <h2>Site Map</h2>
+  <ul><li><a onclick="show('home')">Dashboard</a></li><li><a onclick="show('leaderboard')">Leaderboard</a></li><li><a onclick="show('teams')">My Teams</a></li><li><a onclick="show('fixtures')">Matches</a></li></ul>
+</div>
+
+<div class="nav-bar">
+  <div class="nav-btn" onclick="show('home')">🏠<br>Home</div>
+  <div class="nav-btn" onclick="show('leaderboard')">🏆<br>Board</div>
+  <div class="nav-btn" onclick="show('teams')">👥<br>Teams</div>
+  <div class="nav-btn" onclick="show('fixtures')">⚽<br>Matches</div>
 </div>
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Italy":"Jemma","Canada":"Colman","Germany":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Nigeria":"Aidan","Germany":"Colman","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Spain":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Spain":"Jemma","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Poland":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","Chile":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
+  const owners = {"Mexico":"Connie","South Africa":"Connie","South Korea":"Jemma","Italy":"Jemma","Canada":"Colman","Germany":"Zelda","Qatar":"Zelda","Switzerland":"Connie","Brazil":"Zelda","Morocco":"Aidan","Haiti":"Aidan","Scotland":"Zelda","United States":"Zelda","Paraguay":"Zelda","Australia":"Zelda","Nigeria":"Aidan","Curacao":"Jemma","Ivory Coast":"Connie","Ecuador":"Jemma","Netherlands":"Connie","Japan":"Aidan","Spain":"Connie","Tunisia":"Jemma","Belgium":"Colman","Egypt":"Connie","Iran":"Zelda","New Zealand":"Aidan","Cape Verde":"Aidan","Saudi Arabia":"Jemma","Uruguay":"Aidan","France":"Colman","Senegal":"Colman","Norway":"Connie","Poland":"Aidan","Argentina":"Zelda","Algeria":"Colman","Austria":"Connie","Jordan":"Jemma","Portugal":"Aidan","Chile":"Colman","Uzbekistan":"Jemma","Colombia":"Colman","England":"Colman","Croatia":"Zelda","Ghana":"Colman","Panama":"Connie"};
+  const countryCodes = {"Mexico":"mx","South Africa":"za","South Korea":"kr","Italy":"it","Canada":"ca","Germany":"de","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Nigeria":"ng","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Spain":"es","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Poland":"pl","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","Chile":"cl","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
   }
 
-  function jsonp(url) { return new Promise(r => { const cb = 'c'+Date.now(); window[cb] = (d) => { delete window[cb]; r(d); }; const s = document.createElement('script'); s.src = `${url}&callback=${cb}`; document.body.appendChild(s); }); }
+  function getFlag(c) { return `<img src="https://flagcdn.com/w40/${countryCodes[c] || 'xx'}.png" class="flag">`; }
 
   async function init() {
+    const jsonp = (url) => new Promise(r => { const cb='c'+Date.now(); window[cb]=d=>{delete window[cb];r(d);}; const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); });
     const [fixtures, scores] = await Promise.all([jsonp(SCRIPT_URL + "?action=getFixtures"), jsonp(SCRIPT_URL + "?action=get")]);
     
-    // 1. Calculate Stats
     let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
     Object.entries(scores).forEach(([id, s]) => {
       let m = fixtures.find(x => x["Match #"] == id);
       if(m && s.hS !== "" && s.aS !== "") {
         stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
-        stats[m["Team 1"]].gd += (parseInt(s.hS) - parseInt(s.aS)); stats[m["Team 2"]].gd += (parseInt(s.aS) - parseInt(s.hS));
+        stats[m["Team 1"]].gd += (s.hS - s.aS); stats[m["Team 2"]].gd += (s.aS - s.hS);
         if(s.hS > s.aS) stats[m["Team 1"]].pts += 3; else if(s.aS > s.hS) stats[m["Team 2"]].pts += 3;
         else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
       }
     });
 
-    // 2. Leaderboard (Family Standings)
-    let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
-    Object.keys(stats).forEach(t => {
-      let p = owners[t];
-      famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts;
-    });
-    
-    document.getElementById('leaderboard-data').innerHTML = `<table><tr><th>Family Member</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-      Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => `<tr><td>${n}</td><td>${s.p}</td><td>${s.gd}</td><td>${s.pts}</td></tr>`).join('') + `</table>`;
-
-    // 3. Team Squads
-    const tTables = document.getElementById('team-tables');
-    ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
-      tTables.innerHTML += `<h3>${p}'s Squad</h3><table><tr><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-        Object.keys(owners).filter(t => owners[t] == p).map(t => `<tr><td>${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table>`;
-    });
-
-    // 4. Fixtures
     const fGrid = document.getElementById('fixtures-data');
-    let lastDate = "";
     fixtures.forEach(m => {
       let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
-      let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
-      let time = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-      
-      if(dateHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
-      fGrid.innerHTML += `<div class="match-card"><b>${m["Team 1"]} vs ${m["Team 2"]}</b><br><small>${time} BST</small></div>`;
+      fGrid.innerHTML += `<div class="match-card">
+        <div>${getFlag(m["Team 1"])}<b>${m["Team 1"]}</b></div>
+        <div style="font-size:10px; text-align:center">${d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}<br><b>${d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} BST</b></div>
+        <div style="text-align:right"><b>${m["Team 2"]}</b>${getFlag(m["Team 2"])}</div>
+      </div>`;
     });
   }
   init();
