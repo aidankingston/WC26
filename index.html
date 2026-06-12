@@ -46,7 +46,6 @@
   .search-input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; }
   .day-header { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; background: var(--border); padding: 6px 12px; border-radius: 6px; }
   
-  /* Match Card specific layout */
   .match-card { background: var(--card); padding: 16px 12px; border-radius: 12px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; border: 1px solid var(--border); text-align: center; gap: 10px; }
   .team-img { width: 38px; height: 38px; object-fit: contain; }
   .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; margin-bottom: 5px;}
@@ -63,12 +62,10 @@
   .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-  /* Sweets Economy */
   .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
   .btn-sweet.minus { background: #f8f9fa; color: #555; border: 1px solid #ccc; }
   .btn-sweet:active { transform: scale(0.9); }
 
-  /* History Log */
   .history-log { margin-top: 30px; border-top: 2px solid var(--border); padding-top: 20px; }
   .log-item { background: var(--card); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; font-size: 0.85rem; }
   .log-date { font-size: 0.7rem; color: #888; margin-bottom: 4px; }
@@ -150,6 +147,7 @@
   <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span style="font-size: 1.2rem;">🔄</span><span>Swap</span></div>
 </div>
 
+<!-- Score Input Modal -->
 <div id="score-modal" class="modal">
   <div class="modal-content">
     <div class="modal-title">Log Match Score</div>
@@ -192,10 +190,12 @@
 
   function getVisual(t) { return `<img src="https://flagcdn.com/w40/${countryCodes[t] || 'xx'}.png" class="flag">`; }
 
-  function updateDiagnostics(data) {
-    const f = data.fixtures?data.fixtures.length:0, s = data.scores?Object.keys(data.scores).length:0;
-    const o = data.owners?Object.keys(data.owners).length:0, tl = data.transferLog?data.transferLog.length:0;
-    document.getElementById('diag-console').innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${f}<br>> Scores: ${s}<br>> Config: ${o}<br>> History Logs: ${tl}`;
+  function updateDiagnostics(msg) {
+    const dBox = document.getElementById('diag-console');
+    if (typeof msg === 'string') { dBox.innerHTML = msg; return; }
+    const f = msg.fixtures?msg.fixtures.length:0, s = msg.scores?Object.keys(msg.scores).length:0;
+    const o = msg.owners?Object.keys(msg.owners).length:0, tl = msg.transferLog?msg.transferLog.length:0;
+    dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${f}<br>> Scores: ${s}<br>> Config: ${o}<br>> History Logs: ${tl}`;
   }
 
   // --- SCORE ENTRY ---
@@ -204,8 +204,8 @@
     document.getElementById('modal-match-details').innerText = `Match #${matchId}`;
     document.getElementById('modal-t1').innerText = t1;
     document.getElementById('modal-t2').innerText = t2;
-    document.getElementById('inp-h').value = h !== 'undefined' ? h : '';
-    document.getElementById('inp-a').value = a !== 'undefined' ? a : '';
+    document.getElementById('inp-h').value = (h !== 'undefined' && h !== '') ? h : '';
+    document.getElementById('inp-a').value = (a !== 'undefined' && a !== '') ? a : '';
     document.getElementById('score-modal').style.display = 'flex';
   }
 
@@ -225,64 +225,204 @@
   function awardSweet(member, amount) {
     if(!appData.sweets) appData.sweets = {};
     appData.sweets[member] = (appData.sweets[member] || 0) + amount;
-    if(appData.sweets[member] < 0) appData.sweets[member] = 0; // prevent negative sweets awarded
+    if(appData.sweets[member] < 0) appData.sweets[member] = 0; 
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp();
     fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'awardSweet', member: member, amount: amount }) });
   }
 
   function renderApp() {
-    if (!appData.owners) return;
-    const owners = appData.owners;
-    
-    let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
-    if(appData.scores && appData.fixtures) {
-      Object.entries(appData.scores).forEach(([id, s]) => {
-        let m = appData.fixtures.find(x => x["Match #"] == id);
-        if(m && s.hS !== "" && s.aS !== "" && stats[m["Team 1"]] && stats[m["Team 2"]]) {
-          const h = parseInt(s.hS), a = parseInt(s.aS);
-          stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
-          stats[m["Team 1"]].gd += (h - a); stats[m["Team 2"]].gd += (a - h);
-          if(h > a) stats[m["Team 1"]].pts += 3; else if(a > h) stats[m["Team 2"]].pts += 3;
-          else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
-        }
+    try {
+      if (!appData.owners) return;
+      
+      // SANITIZATION: Prevents app crash from invisible trailing spaces in Google Sheets
+      const owners = {};
+      Object.keys(appData.owners).forEach(k => owners[k.trim()] = String(appData.owners[k]).trim());
+      appData.owners = owners;
+
+      if(appData.rankings) {
+        const ranks = {};
+        Object.keys(appData.rankings).forEach(k => ranks[k.trim()] = appData.rankings[k]);
+        appData.rankings = ranks;
+      }
+
+      let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
+      if(appData.scores && appData.fixtures) {
+        Object.entries(appData.scores).forEach(([id, s]) => {
+          let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
+          if(m && s.hS !== "" && s.aS !== "" && stats[m["Team 1"]] && stats[m["Team 2"]]) {
+            const h = parseInt(s.hS), a = parseInt(s.aS);
+            stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
+            stats[m["Team 1"]].gd += (h - a); stats[m["Team 2"]].gd += (a - h);
+            if(h > a) stats[m["Team 1"]].pts += 3; else if(a > h) stats[m["Team 2"]].pts += 3;
+            else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
+          }
+        });
+      }
+
+      // Leaderboard + Sweets Display (With strict name-matching safety)
+      let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
+      Object.keys(stats).forEach(t => { 
+        if(owners[t]) { 
+          let p = owners[t]; 
+          if(famStats[p]) { // Safety check ensures no crash if unknown name exists
+            famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; 
+          }
+        } 
       });
+      
+      document.getElementById('leaderboard-data').innerHTML = `<table><tr><th style="text-align:left">Family Member</th><th>Pts (🍬)</th><th>Redeem</th><th>Balance</th></tr>` +
+        Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
+          let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
+          let diff = s.pts - awarded;
+          let sweetStatus = diff > 0 ? `<span style="color:#d9534f; font-weight:bold;">Owed: ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold;">Settled</span>`;
+          return `<tr>
+            <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
+            <td><b>${s.pts}</b></td>
+            <td style="white-space:nowrap;">
+              <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-1</button>
+              <span style="font-weight:bold; margin:0 5px;">${awarded}</span>
+              <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+1</button>
+            </td>
+            <td>${sweetStatus}</td>
+          </tr>`;
+        }).join('') + `</table>`;
+
+      // Teams Table
+      const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
+      ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
+        tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
+      });
+
+      // Fixtures
+      const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
+      let lastDate = "";
+      if(appData.fixtures) {
+        appData.fixtures.forEach(m => {
+          let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+          if(isNaN(d.getTime())) return;
+          d.setHours(d.getHours() + 5); 
+          let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+          if(dateHeader !== lastDate) { fGrid.innerHTML += `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
+          
+          const hScore = appData.scores && appData.scores[m["Match #"]] && appData.scores[m["Match #"]].hS !== "" ? appData.scores[m["Match #"]].hS : '';
+          const aScore = appData.scores && appData.scores[m["Match #"]] && appData.scores[m["Match #"]].aS !== "" ? appData.scores[m["Match #"]].aS : '';
+          const isPlayed = hScore !== '' && aScore !== '';
+          
+          const owner1 = owners[m["Team 1"]] || "N/A";
+          const owner2 = owners[m["Team 2"]] || "N/A";
+
+          let centerBlock = isPlayed 
+            ? `<div onclick="openScoreModal('${m["Match #"]}', '${m["Team 1"]}', '${m["Team 2"]}', '${hScore}', '${aScore}')" style="cursor:pointer;">
+                 <div class="score-display">${hScore} - ${aScore}</div>
+                 <span class="edit-icon">✏️ Edit</span>
+               </div>`
+            : `<div>
+                 <div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div>
+                 <button class="score-btn" onclick="openScoreModal('${m["Match #"]}', '${m["Team 1"]}', '${m["Team 2"]}', '', '')">Add Score</button>
+               </div>`;
+
+          fGrid.innerHTML += `<div class="match-card">
+              <div>${getVisual(m["Team 1"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 1"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner1})</span></div>
+              ${centerBlock}
+              <div>${getVisual(m["Team 2"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 2"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner2})</span></div>
+            </div>`;
+        });
+      }
+
+      // Transfer History
+      const hLog = document.getElementById('history-data');
+      if (appData.transferLog && appData.transferLog.length > 0) {
+        hLog.innerHTML = appData.transferLog.slice().reverse().map(l => `
+          <div class="log-item">
+            <div class="log-date">${l.date}</div>
+            <b>${l.p1}</b> traded <b>${l.t1}</b> to <b>${l.p2}</b> for <b>${l.t2}</b>
+          </div>
+        `).join('');
+      } else {
+        hLog.innerHTML = `<i style="color:#888; font-size:0.85rem;">No transfers made yet.</i>`;
+      }
+    } catch(err) {
+      console.error(err);
+      updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}<br>> Data may be corrupted. Hard Refresh required.`);
     }
+  }
 
-    // Leaderboard + Sweets Display
-    let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
-    Object.keys(stats).forEach(t => { if(owners[t]) { let p = owners[t]; famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; } });
+  function calcSwaps() {
+    const p1 = document.getElementById('t-person1').value;
+    const p2 = document.getElementById('t-person2').value;
+    const res = document.getElementById('swap-results');
     
-    document.getElementById('leaderboard-data').innerHTML = `<table><tr><th style="text-align:left">Family Member</th><th>Pts (🍬)</th><th>Redeem</th><th>Balance</th></tr>` +
-      Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
-        let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
-        let diff = s.pts - awarded;
-        let sweetStatus = diff > 0 ? `<span style="color:#d9534f; font-weight:bold;">Owed: ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold;">Settled</span>`;
-        return `<tr>
-          <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
-          <td><b>${s.pts}</b></td>
-          <td style="white-space:nowrap;">
-            <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-1</button>
-            <span style="font-weight:bold; margin:0 5px;">${awarded}</span>
-            <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+1</button>
-          </td>
-          <td>${sweetStatus}</td>
-        </tr>`;
-      }).join('') + `</table>`;
+    if(!p1 || !p2 || p1 === p2) { res.innerHTML = ""; return; }
+    if(!appData.rankings || Object.keys(appData.rankings).length === 0) { res.innerHTML = "<i>Rankings data missing. Open Diagnostics to test.</i>"; return; }
 
-    // Teams Table
-    const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
-    ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
-      tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-        Object.keys(owners).filter(t => owners[t] == p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
+    const p1Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p1);
+    const p2Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p2);
+    let validSwaps = [];
+
+    p1Teams.forEach(t1 => {
+      p2Teams.forEach(t2 => {
+        let r1 = parseInt(appData.rankings[t1]), r2 = parseInt(appData.rankings[t2]);
+        if (!isNaN(r1) && !isNaN(r2) && Math.abs(r1 - r2) <= 10) validSwaps.push({t1, r1, t2, r2});
+      });
     });
 
-    // Fixtures & Match Cards
-    const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
-    let lastDate = "";
-    if(appData.fixtures) {
-      appData.fixtures.forEach(m => {
-        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
-        if(isNaN(d.getTime())) return;
-        d.setHours(d.getHours() + 5); 
-        let date
+    if (validSwaps.length === 0) { res.innerHTML = `<i>No valid swaps within 10 rank places.</i>`; return; }
+
+    res.innerHTML = validSwaps.map(s => `
+      <div class="swap-card">
+        <div class="swap-teams">
+          <div class="swap-side"><div class="swap-owner" style="color: var(--${p1});">${p1}</div>${getVisual(s.t1)}<br>${s.t1}<div class="swap-rank">Rank: ${s.r1}</div></div>
+          <div class="swap-icon">🔄</div>
+          <div class="swap-side"><div class="swap-owner" style="color: var(--${p2});">${p2}</div>${getVisual(s.t2)}<br>${s.t2}<div class="swap-rank">Rank: ${s.r2}</div></div>
+        </div>
+        <button class="btn-swap" onclick="executeSwap('${s.t1}', '${p1}', '${s.t2}', '${p2}')">Confirm Swap</button>
+      </div>
+    `).join('');
+  }
+
+  function executeSwap(t1, p1, t2, p2) {
+    if(!confirm(`Swap ${t1} for ${t2}?`)) return;
+    if(!appData.transferLog) appData.transferLog = [];
+    const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
+    appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
+    appData.owners[t1] = p2; appData.owners[t2] = p1;
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    renderApp(); calcSwaps(); 
+    fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 }) });
+  }
+
+  function forceHardRefresh() {
+    updateDiagnostics("> Fetching live data...");
+    const jsonp = (url) => new Promise((resolve, reject) => { 
+      const cb='c'+Date.now(); 
+      const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
+      window[cb]=d=>{ clearTimeout(timeout); delete window[cb]; resolve(d); }; 
+      const s=document.createElement('script'); 
+      s.src=`${url}&callback=${cb}`; 
+      s.onerror = () => { clearTimeout(timeout); reject(new Error('Network Error')); };
+      document.body.appendChild(s); 
+    });
+    
+    jsonp(SCRIPT_URL + "?action=getAll").then(data => {
+      appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData));
+      updateDiagnostics(appData); renderApp();
+    }).catch(e => { updateDiagnostics(`> ERROR: Connection failed. <br>> ${e.message}`); });
+  }
+
+  async function init() {
+    const cached = localStorage.getItem('wc26_data');
+    if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
+    const jsonp = (url) => new Promise((resolve, reject) => { 
+      const cb='c'+Date.now(); 
+      window[cb]=d=>{ delete window[cb]; resolve(d); }; 
+      const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); 
+    });
+    try { appData = await jsonp(SCRIPT_URL + "?action=getAll"); localStorage.setItem('wc26_data', JSON.stringify(appData)); updateDiagnostics(appData); renderApp(); } catch(e) {}
+  }
+  
+  init();
+</script>
+</body>
+</html>
