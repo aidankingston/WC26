@@ -84,7 +84,7 @@
 </head>
 <body>
 
-<div class="header" onclick="triggerDevMode()">WORLD CUP 2026™</div>
+<div class="header" onclick="triggerDevMode()">WORLD Cup 2026™</div>
 
 <div id="screen-home" class="screen active">
   <div class="tile-grid">
@@ -100,6 +100,9 @@
     <div class="tile" onclick="show('transfers')">
       <div class="tile-info"><span class="tile-title">🔄 Transfers</span><span class="tile-desc">Swap teams & view history</span></div>
     </div>
+  </div>
+  <div id="home-sync-status" style="text-align: center; font-size: 0.8rem; color: #888; margin-top: 20px;">
+    Loading live data...
   </div>
 </div>
 
@@ -135,7 +138,7 @@
 
 <div id="screen-diagnostics" class="screen">
   <div class="screen-header"><h2 class="screen-title">System Diagnostics</h2><button class="btn-back" onclick="show('home')">←</button></div>
-  <button class="btn-back" style="width:100%; margin-bottom:10px; text-align:center" onclick="forceHardRefresh()">Force Fetch from Server</button>
+  <button class="btn-back" style="width:100%; margin-bottom:10px; text-align:center; background:#002366; color:white; font-weight:bold;" onclick="forceHardRefresh()">Force Sync & Return Home</button>
   <div id="diag-console" class="diag-box">Waiting for data...</div>
 </div>
 
@@ -188,7 +191,6 @@
     document.querySelectorAll('.match-card').forEach(c => c.style.display = c.innerText.toLowerCase().includes(q) ? 'grid' : 'none');
   }
 
-  // Sanitized robust flag matching
   function getVisual(t) { 
     if(!t) return `<img src="https://flagcdn.com/w40/xx.png" class="flag">`;
     const cleanT = t.trim();
@@ -207,6 +209,10 @@
     const f = msg.fixtures?msg.fixtures.length:0, s = msg.scores?Object.keys(msg.scores).length:0;
     const o = msg.owners?Object.keys(msg.owners).length:0, tl = msg.transferLog?msg.transferLog.length:0;
     dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${f}<br>> Scores: ${s}<br>> Config: ${o}<br>> History Logs: ${tl}`;
+    
+    // Update the visual confirmation on the Home Screen
+    const homeStatus = document.getElementById('home-sync-status');
+    if (homeStatus) homeStatus.innerHTML = `Last Live Sync: <b>${new Date().toLocaleTimeString()}</b>`;
   }
 
   function openScoreModal(matchId, t1, t2, h, a) {
@@ -404,20 +410,29 @@
   }
 
   function forceHardRefresh() {
-    updateDiagnostics("> Fetching live data...");
+    updateDiagnostics("> Destroying cache & fetching live data...");
     const jsonp = (url) => new Promise((resolve, reject) => { 
-      const cb='c'+Date.now(); 
+      const cb='c'+Date.now()+'_'+Math.floor(Math.random()*1000); 
       const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
       window[cb]=d=>{ clearTimeout(timeout); delete window[cb]; resolve(d); }; 
       const s=document.createElement('script'); 
-      s.src=`${url}&callback=${cb}`; 
+      // The nocache parameter completely forces a fresh pull from Google Servers
+      s.src=`${url}&callback=${cb}&nocache=${cb}`; 
       s.onerror = () => { clearTimeout(timeout); reject(new Error('Network Error')); };
       document.body.appendChild(s); 
     });
     
     jsonp(SCRIPT_URL + "?action=getAll").then(data => {
-      appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData));
-      updateDiagnostics(appData); renderApp();
+      if(data && data.owners) {
+        appData = data; 
+        localStorage.setItem('wc26_data', JSON.stringify(appData));
+        updateDiagnostics(appData); 
+        renderApp();
+        alert('Sync Complete! The app has been updated with the latest scores and data.');
+        show('home');
+      } else {
+        updateDiagnostics(`> ERROR: Received empty data structure from Google.`);
+      }
     }).catch(e => { updateDiagnostics(`> ERROR: Connection failed. <br>> ${e.message}`); });
   }
 
@@ -425,11 +440,17 @@
     const cached = localStorage.getItem('wc26_data');
     if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
     const jsonp = (url) => new Promise((resolve, reject) => { 
-      const cb='c'+Date.now(); 
+      const cb='c'+Date.now()+'_'+Math.floor(Math.random()*1000); 
       window[cb]=d=>{ delete window[cb]; resolve(d); }; 
-      const s=document.createElement('script'); s.src=`${url}&callback=${cb}`; document.body.appendChild(s); 
+      const s=document.createElement('script'); s.src=`${url}&callback=${cb}&nocache=${cb}`; document.body.appendChild(s); 
     });
-    try { appData = await jsonp(SCRIPT_URL + "?action=getAll"); localStorage.setItem('wc26_data', JSON.stringify(appData)); updateDiagnostics(appData); renderApp(); } catch(e) {}
+    try { 
+      const data = await jsonp(SCRIPT_URL + "?action=getAll"); 
+      if(data && data.owners) {
+        appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData)); 
+        updateDiagnostics(appData); renderApp(); 
+      }
+    } catch(e) {}
   }
   
   init();
