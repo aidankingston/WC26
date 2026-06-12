@@ -39,8 +39,8 @@
 
   .table-container { overflow-x: auto; border-radius: 12px; background: var(--card); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 24px; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  th { position: sticky; top: 0; padding: 12px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--border); background: #f8f9fa; z-index: 10; }
-  td { padding: 14px 10px; text-align: center; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; }
+  th { position: sticky; top: 0; padding: 12px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--border); background: #f8f9fa; z-index: 10; }
+  td { padding: 12px 6px; text-align: center; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
   .color-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 
   .search-input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; }
@@ -62,7 +62,7 @@
   .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-  .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
+  .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
   .btn-sweet.minus { background: #f8f9fa; color: #555; border: 1px solid #ccc; }
   .btn-sweet:active { transform: scale(0.9); }
 
@@ -210,7 +210,6 @@
     const o = msg.owners?Object.keys(msg.owners).length:0, tl = msg.transferLog?msg.transferLog.length:0;
     dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${f}<br>> Scores: ${s}<br>> Config: ${o}<br>> History Logs: ${tl}`;
     
-    // Update the visual confirmation on the Home Screen
     const homeStatus = document.getElementById('home-sync-status');
     if (homeStatus) homeStatus.innerHTML = `Last Live Sync: <b>${new Date().toLocaleTimeString()}</b>`;
   }
@@ -234,7 +233,13 @@
     appData.scores[activeEditMatch] = { hS: h, aS: a };
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp(); closeScoreModal();
-    fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'update', id: activeEditMatch, h: h, a: a }) });
+    
+    fetch(SCRIPT_URL, { 
+      method: 'POST', 
+      mode: 'no-cors', 
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
+      body: `action=update&id=${encodeURIComponent(activeEditMatch)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`
+    });
   }
 
   function awardSweet(member, amount) {
@@ -243,7 +248,30 @@
     if(appData.sweets[member] < 0) appData.sweets[member] = 0; 
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp();
-    fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'awardSweet', member: member, amount: amount }) });
+    
+    fetch(SCRIPT_URL, { 
+      method: 'POST', 
+      mode: 'no-cors', 
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
+      body: `action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`
+    });
+  }
+
+  function executeSwap(t1, p1, t2, p2) {
+    if(!confirm(`Swap ${t1} for ${t2}?`)) return;
+    if(!appData.transferLog) appData.transferLog = [];
+    const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
+    appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
+    appData.owners[t1] = p2; appData.owners[t2] = p1;
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    renderApp(); calcSwaps(); 
+    
+    fetch(SCRIPT_URL, { 
+      method: 'POST', 
+      mode: 'no-cors', 
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
+      body: `action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`
+    });
   }
 
   function renderApp() {
@@ -284,18 +312,28 @@
         } 
       });
       
-      document.getElementById('leaderboard-data').innerHTML = `<table><tr><th style="text-align:left">Family Member</th><th>Pts (🍬)</th><th>Redeem</th><th>Balance</th></tr>` +
+      document.getElementById('leaderboard-data').innerHTML = `<table>
+        <tr>
+          <th style="text-align:left">Family</th>
+          <th>P</th>
+          <th>GD</th>
+          <th>Pts</th>
+          <th>🍬</th>
+          <th>Balance</th>
+        </tr>` +
         Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
           let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
           let diff = s.pts - awarded;
-          let sweetStatus = diff > 0 ? `<span style="color:#d9534f; font-weight:bold;">Owed: ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold;">Settled</span>`;
+          let sweetStatus = diff > 0 ? `<span style="color:#d9534f; font-weight:bold; font-size: 0.8rem;">Owe: ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold; font-size: 0.8rem;">Settled</span>`;
           return `<tr>
             <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
+            <td>${s.p}</td>
+            <td>${s.gd > 0 ? '+' + s.gd : s.gd}</td>
             <td><b>${s.pts}</b></td>
             <td style="white-space:nowrap;">
-              <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-1</button>
-              <span style="font-weight:bold; margin:0 5px;">${awarded}</span>
-              <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+1</button>
+              <button class="btn-sweet minus" style="padding:2px 8px; font-size:0.9rem;" onclick="awardSweet('${n}', -1)">-</button>
+              <span style="font-weight:bold; margin:0 2px;">${awarded}</span>
+              <button class="btn-sweet" style="padding:2px 8px; font-size:0.9rem;" onclick="awardSweet('${n}', 1)">+</button>
             </td>
             <td>${sweetStatus}</td>
           </tr>`;
@@ -398,17 +436,6 @@
     `).join('');
   }
 
-  function executeSwap(t1, p1, t2, p2) {
-    if(!confirm(`Swap ${t1} for ${t2}?`)) return;
-    if(!appData.transferLog) appData.transferLog = [];
-    const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
-    appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
-    appData.owners[t1] = p2; appData.owners[t2] = p1;
-    localStorage.setItem('wc26_data', JSON.stringify(appData));
-    renderApp(); calcSwaps(); 
-    fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 }) });
-  }
-
   function forceHardRefresh() {
     updateDiagnostics("> Destroying cache & fetching live data...");
     const jsonp = (url) => new Promise((resolve, reject) => { 
@@ -416,7 +443,6 @@
       const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
       window[cb]=d=>{ clearTimeout(timeout); delete window[cb]; resolve(d); }; 
       const s=document.createElement('script'); 
-      // The nocache parameter completely forces a fresh pull from Google Servers
       s.src=`${url}&callback=${cb}&nocache=${cb}`; 
       s.onerror = () => { clearTimeout(timeout); reject(new Error('Network Error')); };
       document.body.appendChild(s); 
