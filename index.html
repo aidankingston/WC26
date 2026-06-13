@@ -82,7 +82,8 @@
   .btn-cancel { background: #e9ecef; color: #495057; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 </style>
 </head>
-<body>
+
+  <body>
 
 <div class="header" onclick="triggerDevMode()">WORLD Cup 2026™</div>
 
@@ -142,7 +143,8 @@
   <div id="diag-console" class="diag-box">Waiting for data...</div>
 </div>
 
-<div class="nav-bar">
+
+    <div class="nav-bar">
   <div class="nav-btn" id="nav-home" onclick="show('home')"><span style="font-size: 1.2rem;">🏠</span><span>Home</span></div>
   <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span style="font-size: 1.2rem;">🏆</span><span>Board</span></div>
   <div class="nav-btn" id="nav-teams" onclick="show('teams')"><span style="font-size: 1.2rem;">👥</span><span>Teams</span></div>
@@ -167,13 +169,25 @@
   </div>
 </div>
 
-<script>
+
+    <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
   const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   let appData = {};
   let devClickCount = 0;
   let activeEditMatch = null;
+
+  // GLOBAL JSONP HELPER 
+  const jsonp = (url) => new Promise((resolve, reject) => { 
+    const cb = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1000); 
+    const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
+    window[cb] = d => { clearTimeout(timeout); delete window[cb]; resolve(d); }; 
+    const s = document.createElement('script'); 
+    s.src = `${url}&callback=${cb}&nocache=${cb}`; 
+    s.onerror = () => { clearTimeout(timeout); reject(new Error('Network Error')); };
+    document.body.appendChild(s); 
+  });
 
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
@@ -226,20 +240,24 @@
 
   function closeScoreModal() { document.getElementById('score-modal').style.display = 'none'; activeEditMatch = null; }
 
+  // REWRITTEN SAVE FUNCTION - Captures ID safely before closing modal
   function saveScore() {
-    const h = document.getElementById('inp-h').value; const a = document.getElementById('inp-a').value;
+    const h = document.getElementById('inp-h').value; 
+    const a = document.getElementById('inp-a').value;
     if(h === '' || a === '') { alert("Enter both scores."); return; }
-    if(!appData.scores) appData.scores = {};
-    appData.scores[activeEditMatch] = { hS: h, aS: a };
-    localStorage.setItem('wc26_data', JSON.stringify(appData));
-    renderApp(); closeScoreModal();
     
-    fetch(SCRIPT_URL, { 
-      method: 'POST', 
-      mode: 'no-cors', 
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
-      body: `action=update&id=${encodeURIComponent(activeEditMatch)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`
-    });
+    const currentMatchToSave = activeEditMatch;
+    if (!currentMatchToSave) return; 
+
+    if(!appData.scores) appData.scores = {};
+    appData.scores[currentMatchToSave] = { hS: h, aS: a };
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    
+    // Sends data to Google Sheets BEFORE closing popup so ID isn't wiped
+    jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`);
+    
+    renderApp(); 
+    closeScoreModal();
   }
 
   function awardSweet(member, amount) {
@@ -249,12 +267,7 @@
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp();
     
-    fetch(SCRIPT_URL, { 
-      method: 'POST', 
-      mode: 'no-cors', 
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
-      body: `action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`
-    });
+    jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`);
   }
 
   function executeSwap(t1, p1, t2, p2) {
@@ -264,14 +277,10 @@
     appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
     appData.owners[t1] = p2; appData.owners[t2] = p1;
     localStorage.setItem('wc26_data', JSON.stringify(appData));
-    renderApp(); calcSwaps(); 
     
-    fetch(SCRIPT_URL, { 
-      method: 'POST', 
-      mode: 'no-cors', 
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, 
-      body: `action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`
-    });
+    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`);
+    
+    renderApp(); calcSwaps(); 
   }
 
   function renderApp() {
@@ -438,16 +447,6 @@
 
   function forceHardRefresh() {
     updateDiagnostics("> Destroying cache & fetching live data...");
-    const jsonp = (url) => new Promise((resolve, reject) => { 
-      const cb='c'+Date.now()+'_'+Math.floor(Math.random()*1000); 
-      const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
-      window[cb]=d=>{ clearTimeout(timeout); delete window[cb]; resolve(d); }; 
-      const s=document.createElement('script'); 
-      s.src=`${url}&callback=${cb}&nocache=${cb}`; 
-      s.onerror = () => { clearTimeout(timeout); reject(new Error('Network Error')); };
-      document.body.appendChild(s); 
-    });
-    
     jsonp(SCRIPT_URL + "?action=getAll").then(data => {
       if(data && data.owners) {
         appData = data; 
@@ -465,11 +464,6 @@
   async function init() {
     const cached = localStorage.getItem('wc26_data');
     if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
-    const jsonp = (url) => new Promise((resolve, reject) => { 
-      const cb='c'+Date.now()+'_'+Math.floor(Math.random()*1000); 
-      window[cb]=d=>{ delete window[cb]; resolve(d); }; 
-      const s=document.createElement('script'); s.src=`${url}&callback=${cb}&nocache=${cb}`; document.body.appendChild(s); 
-    });
     try { 
       const data = await jsonp(SCRIPT_URL + "?action=getAll"); 
       if(data && data.owners) {
