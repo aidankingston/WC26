@@ -91,6 +91,7 @@
 
 <div class="header" onclick="triggerDevMode()">WORLD Cup 2026™</div>
 
+<!-- Toast Notification Container -->
 <div id="toast" class="toast">Saving to Google...</div>
 
 <div id="screen-home" class="screen active">
@@ -157,6 +158,7 @@
   <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span style="font-size: 1.2rem;">🔄</span><span>Swap</span></div>
 </div>
 
+<!-- Score Input Modal -->
 <div id="score-modal" class="modal">
   <div class="modal-content">
     <div class="modal-title">Log Match Score</div>
@@ -204,6 +206,16 @@
     document.body.appendChild(s); 
   });
 
+  // --- UTILITY: Name Normalizer (CRITICAL FIX FOR MISSING TEAMS) ---
+  function normName(t) {
+    if(!t) return "Unknown";
+    let clean = String(t).trim();
+    if(clean === "Bosnia" || clean === "Bosnia and Herzegovina") return "Bosnia & Herzegovina";
+    if(clean === "Turkey") return "Turkiye";
+    if(clean === "USA") return "United States";
+    return clean;
+  }
+
   // --- NAVIGATION & UI ---
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
@@ -222,14 +234,8 @@
   }
 
   function getVisual(t) { 
-    if(!t) return `<img src="https://flagcdn.com/w40/xx.png" class="flag">`;
-    const cleanT = t.trim();
-    let code = countryCodes[cleanT];
-    if(!code) {
-      if(cleanT.includes("Spain")) code = "es";
-      if(cleanT.includes("Bosnia")) code = "ba";
-      code = code || 'xx';
-    }
+    let code = countryCodes[normName(t)];
+    if(!code) code = 'xx';
     return `<img src="https://flagcdn.com/w40/${code}.png" class="flag">`; 
   }
 
@@ -269,10 +275,12 @@
     if(!appData.scores) appData.scores = {};
     appData.scores[currentMatchToSave] = { hS: h, aS: a };
     localStorage.setItem('wc26_data', JSON.stringify(appData));
+    
+    // Instantly Recalculate Tables
     renderApp(); 
     closeScoreModal();
 
-    // Send to Google
+    // Send to Google Backend
     showToast("Saving score...");
     jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`)
       .then(() => showToast("Score saved globally!"))
@@ -300,12 +308,14 @@
     const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
     appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
     
-    appData.owners[t1] = p2; appData.owners[t2] = p1;
+    // Using Normalized Team Names to assign owners
+    appData.owners[normName(t1)] = p2; 
+    appData.owners[normName(t2)] = p1;
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp(); calcSwaps(); 
     
     showToast("Processing Transfer...");
-    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`)
+    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(normName(t1))}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(normName(t2))}&p2=${encodeURIComponent(p2)}`)
       .then(() => showToast("Transfer finalized!"))
       .catch(() => showToast("Network Error: Transfer saved locally only.", true));
   }
@@ -315,31 +325,48 @@
     try {
       if (!appData.owners) return;
       
+      // 1. Unify/Clean data dictionaries using the normalizer
       const owners = {};
-      Object.keys(appData.owners).forEach(k => owners[k.trim()] = String(appData.owners[k]).trim());
+      Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim());
+      
+      // EXPLICIT FALLBACK: Guarantee Zelda owns Bosnia
+      owners["Bosnia & Herzegovina"] = "Zelda";
       appData.owners = owners;
 
       if(appData.rankings) {
         const ranks = {};
-        Object.keys(appData.rankings).forEach(k => ranks[k.trim()] = appData.rankings[k]);
+        Object.keys(appData.rankings).forEach(k => ranks[normName(k)] = appData.rankings[k]);
         appData.rankings = ranks;
       }
 
-      // Calculate Stats securely
-      let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
+      // 2. Prepare Stats objects for ALL teams found in Fixtures (Crucial fix for crash)
+      let stats = {}; 
+      if(appData.fixtures) {
+        appData.fixtures.forEach(m => {
+          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+          if(t1 && !stats[t1]) stats[t1] = {played:0, pts:0, gd:0};
+          if(t2 && !stats[t2]) stats[t2] = {played:0, pts:0, gd:0};
+        });
+      }
+
+      // 3. Process the scores
       if(appData.scores && appData.fixtures) {
         Object.entries(appData.scores).forEach(([id, s]) => {
           let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
-          if(m && s.hS !== "" && s.aS !== "" && stats[m["Team 1"]] && stats[m["Team 2"]]) {
-            const h = parseInt(s.hS), a = parseInt(s.aS);
-            stats[m["Team 1"]].played++; stats[m["Team 2"]].played++;
-            stats[m["Team 1"]].gd += (h - a); stats[m["Team 2"]].gd += (a - h);
-            if(h > a) stats[m["Team 1"]].pts += 3; else if(a > h) stats[m["Team 2"]].pts += 3;
-            else { stats[m["Team 1"]].pts += 1; stats[m["Team 2"]].pts += 1; }
+          if(m && s.hS !== "" && s.aS !== "") {
+            let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+            if(stats[t1] && stats[t2]) {
+              const h = parseInt(s.hS), a = parseInt(s.aS);
+              stats[t1].played++; stats[t2].played++;
+              stats[t1].gd += (h - a); stats[t2].gd += (a - h);
+              if(h > a) stats[t1].pts += 3; else if(a > h) stats[t2].pts += 3;
+              else { stats[t1].pts += 1; stats[t2].pts += 1; }
+            }
           }
         });
       }
 
+      // 4. Roll up into Family Leaderboard
       let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts:0});
       Object.keys(stats).forEach(t => { 
         if(owners[t]) { 
@@ -382,7 +409,7 @@
       const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
         tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd > 0 ? '+'+stats[t].gd : stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
+          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
       });
 
       // Render Fixtures
@@ -400,23 +427,24 @@
           const aScore = appData.scores && appData.scores[m["Match #"]] && appData.scores[m["Match #"]].aS !== "" ? appData.scores[m["Match #"]].aS : '';
           const isPlayed = hScore !== '' && aScore !== '';
           
-          const owner1 = owners[m["Team 1"]] || "N/A";
-          const owner2 = owners[m["Team 2"]] || "N/A";
+          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+          const owner1 = owners[t1] || "N/A";
+          const owner2 = owners[t2] || "N/A";
 
           let centerBlock = isPlayed 
-            ? `<div onclick="openScoreModal('${m["Match #"]}', '${m["Team 1"]}', '${m["Team 2"]}', '${hScore}', '${aScore}')" style="cursor:pointer;">
+            ? `<div onclick="openScoreModal('${m["Match #"]}', '${t1}', '${t2}', '${hScore}', '${aScore}')" style="cursor:pointer;">
                  <div class="score-display">${hScore} - ${aScore}</div>
                  <span class="edit-icon">✏️ Edit</span>
                </div>`
             : `<div>
                  <div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div>
-                 <button class="score-btn" onclick="openScoreModal('${m["Match #"]}', '${m["Team 1"]}', '${m["Team 2"]}', '', '')">Add Score</button>
+                 <button class="score-btn" onclick="openScoreModal('${m["Match #"]}', '${t1}', '${t2}', '', '')">Add Score</button>
                </div>`;
 
           fGrid.innerHTML += `<div class="match-card">
-              <div>${getVisual(m["Team 1"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 1"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner1})</span></div>
+              <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.75rem; color:#888;">(${owner1})</span></div>
               ${centerBlock}
-              <div>${getVisual(m["Team 2"])}<br><span style="font-size:0.85rem; font-weight:700">${m["Team 2"]}</span><br><span style="font-size:0.75rem; color:#888;">(${owner2})</span></div>
+              <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.75rem; color:#888;">(${owner2})</span></div>
             </div>`;
         });
       }
@@ -459,7 +487,7 @@
 
     p1Teams.forEach(t1 => {
       p2Teams.forEach(t2 => {
-        let r1 = parseInt(appData.rankings[t1]), r2 = parseInt(appData.rankings[t2]);
+        let r1 = parseInt(appData.rankings[normName(t1)]), r2 = parseInt(appData.rankings[normName(t2)]);
         if (!isNaN(r1) && !isNaN(r2) && Math.abs(r1 - r2) <= 10) validSwaps.push({t1, r1, t2, r2});
       });
     });
@@ -486,7 +514,7 @@
         localStorage.setItem('wc26_data', JSON.stringify(appData));
         updateDiagnostics(appData); 
         renderApp();
-        alert('Sync Complete!');
+        showToast("Sync Complete!");
         show('home');
       } else {
         updateDiagnostics(`> ERROR: Empty data from Google.`);
