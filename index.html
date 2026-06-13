@@ -80,12 +80,18 @@
   .modal-actions { display: flex; gap: 10px; }
   .btn-save { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
   .btn-cancel { background: #e9ecef; color: #495057; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+  /* Toast Notification */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #DC3545; }
 </style>
 </head>
-
-  <body>
+<body>
 
 <div class="header" onclick="triggerDevMode()">WORLD Cup 2026™</div>
+
+<div id="toast" class="toast">Saving to Google...</div>
 
 <div id="screen-home" class="screen active">
   <div class="tile-grid">
@@ -120,7 +126,7 @@
 
 <div id="screen-fixtures" class="screen">
   <div class="screen-header"><h2 class="screen-title">Fixtures</h2><button class="btn-back" onclick="show('home')">←</button></div>
-  <input type="text" id="matchSearch" class="search-input" placeholder="Search..." onkeyup="filterMatches()">
+  <input type="text" id="matchSearch" class="search-input" placeholder="Search matches..." onkeyup="filterMatches()">
   <div id="fixtures-data"></div>
 </div>
 
@@ -143,8 +149,7 @@
   <div id="diag-console" class="diag-box">Waiting for data...</div>
 </div>
 
-
-    <div class="nav-bar">
+<div class="nav-bar">
   <div class="nav-btn" id="nav-home" onclick="show('home')"><span style="font-size: 1.2rem;">🏠</span><span>Home</span></div>
   <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span style="font-size: 1.2rem;">🏆</span><span>Board</span></div>
   <div class="nav-btn" id="nav-teams" onclick="show('teams')"><span style="font-size: 1.2rem;">👥</span><span>Teams</span></div>
@@ -152,7 +157,6 @@
   <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span style="font-size: 1.2rem;">🔄</span><span>Swap</span></div>
 </div>
 
-<!-- Score Input Modal -->
 <div id="score-modal" class="modal">
   <div class="modal-content">
     <div class="modal-title">Log Match Score</div>
@@ -169,16 +173,27 @@
   </div>
 </div>
 
-
-    <script>
+<script>
+  // ---- CONFIGURATION ----
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
   const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   let appData = {};
   let devClickCount = 0;
   let activeEditMatch = null;
+  let toastTimeout;
 
-  // GLOBAL JSONP HELPER 
+  // --- UTILITY: Toast Notification ---
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    if(isError) toast.classList.add('error'); else toast.classList.remove('error');
+    toast.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // --- UTILITY: JSONP (The Bulletproof Network Fetcher) ---
   const jsonp = (url) => new Promise((resolve, reject) => { 
     const cb = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1000); 
     const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
@@ -189,6 +204,7 @@
     document.body.appendChild(s); 
   });
 
+  // --- NAVIGATION & UI ---
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
   function show(id) {
@@ -240,7 +256,7 @@
 
   function closeScoreModal() { document.getElementById('score-modal').style.display = 'none'; activeEditMatch = null; }
 
-  // REWRITTEN SAVE FUNCTION - Captures ID safely before closing modal
+  // --- ACTIONS (Write to Google) ---
   function saveScore() {
     const h = document.getElementById('inp-h').value; 
     const a = document.getElementById('inp-a').value;
@@ -249,40 +265,52 @@
     const currentMatchToSave = activeEditMatch;
     if (!currentMatchToSave) return; 
 
+    // Update Local Instantly
     if(!appData.scores) appData.scores = {};
     appData.scores[currentMatchToSave] = { hS: h, aS: a };
     localStorage.setItem('wc26_data', JSON.stringify(appData));
-    
-    // Sends data to Google Sheets BEFORE closing popup so ID isn't wiped
-    jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`);
-    
     renderApp(); 
     closeScoreModal();
+
+    // Send to Google
+    showToast("Saving score...");
+    jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}`)
+      .then(() => showToast("Score saved globally!"))
+      .catch(() => showToast("Network Error: Score saved locally only.", true));
   }
 
   function awardSweet(member, amount) {
     if(!appData.sweets) appData.sweets = {};
     appData.sweets[member] = (appData.sweets[member] || 0) + amount;
     if(appData.sweets[member] < 0) appData.sweets[member] = 0; 
+    
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp();
     
-    jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`);
+    showToast("Updating Sweets...");
+    jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`)
+      .then(() => showToast("Sweets updated globally!"))
+      .catch(() => showToast("Network Error: Saved locally only.", true));
   }
 
   function executeSwap(t1, p1, t2, p2) {
     if(!confirm(`Swap ${t1} for ${t2}?`)) return;
+    
     if(!appData.transferLog) appData.transferLog = [];
     const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
     appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
+    
     appData.owners[t1] = p2; appData.owners[t2] = p1;
     localStorage.setItem('wc26_data', JSON.stringify(appData));
-    
-    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`);
-    
     renderApp(); calcSwaps(); 
+    
+    showToast("Processing Transfer...");
+    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(t1)}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(t2)}&p2=${encodeURIComponent(p2)}`)
+      .then(() => showToast("Transfer finalized!"))
+      .catch(() => showToast("Network Error: Transfer saved locally only.", true));
   }
 
+  // --- RENDERING CORE ---
   function renderApp() {
     try {
       if (!appData.owners) return;
@@ -297,6 +325,7 @@
         appData.rankings = ranks;
       }
 
+      // Calculate Stats securely
       let stats = {}; Object.keys(owners).forEach(t => stats[t] = {played:0, pts:0, gd:0});
       if(appData.scores && appData.fixtures) {
         Object.entries(appData.scores).forEach(([id, s]) => {
@@ -321,6 +350,7 @@
         } 
       });
       
+      // Render Leaderboard
       document.getElementById('leaderboard-data').innerHTML = `<table>
         <tr>
           <th style="text-align:left">Family</th>
@@ -348,12 +378,14 @@
           </tr>`;
         }).join('') + `</table>`;
 
+      // Render Team Tables
       const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
         tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
+          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd > 0 ? '+'+stats[t].gd : stats[t].gd}</td><td>${stats[t].pts}</td></tr>`).join('') + `</table></div>`;
       });
 
+      // Render Fixtures
       const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
       let lastDate = "";
       if(appData.fixtures) {
@@ -389,6 +421,7 @@
         });
       }
 
+      // Render Logs
       let logHTML = `
         <div class="log-item">
           <div class="log-date">Pre-Tournament</div>
@@ -408,7 +441,7 @@
 
     } catch(err) {
       console.error(err);
-      updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}<br>> Data may be corrupted. Hard Refresh required.`);
+      updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}`);
     }
   }
 
@@ -446,17 +479,17 @@
   }
 
   function forceHardRefresh() {
-    updateDiagnostics("> Destroying cache & fetching live data...");
+    updateDiagnostics("> Fetching live data...");
     jsonp(SCRIPT_URL + "?action=getAll").then(data => {
       if(data && data.owners) {
         appData = data; 
         localStorage.setItem('wc26_data', JSON.stringify(appData));
         updateDiagnostics(appData); 
         renderApp();
-        alert('Sync Complete! The app has been updated with the latest scores and data.');
+        alert('Sync Complete!');
         show('home');
       } else {
-        updateDiagnostics(`> ERROR: Received empty data structure from Google.`);
+        updateDiagnostics(`> ERROR: Empty data from Google.`);
       }
     }).catch(e => { updateDiagnostics(`> ERROR: Connection failed. <br>> ${e.message}`); });
   }
