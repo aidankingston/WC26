@@ -63,6 +63,8 @@
   .swap-card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 12px; margin-bottom: 12px; text-align: center; }
   .swap-teams { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
   .swap-side { width: 40%; font-weight: 700; font-size: 0.9rem; }
+  .swap-rank { font-size: 0.75rem; color: #888; font-weight: 400; margin-top: 4px; }
+  .swap-owner { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; }
   .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
@@ -83,6 +85,7 @@
   .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
   .toast.show { opacity: 1; }
   .toast.error { background: #DC3545; }
+  .warning-icon { color: #DC3545; font-size: 1rem; cursor: help; }
 </style>
 </head>
 <body>
@@ -107,8 +110,15 @@
     <div class="tile" onclick="show('teams')">
       <div class="tile-info"><span class="tile-title">👥 My Teams</span><span class="tile-desc">Individual family squad stats</span></div>
     </div>
+    <div class="tile" onclick="show('transfers')">
+      <div class="tile-info"><span class="tile-title">🔄 Transfers</span><span class="tile-desc">Swap teams & view history</span></div>
+    </div>
   </div>
-  <div id="home-sync-status" style="text-align: center; font-size: 0.8rem; color: #888; margin-top: 20px;">Loading live data...</div>
+  
+  <div style="text-align: center; margin-top: 30px;">
+    <div id="home-sync-status" style="font-size: 0.8rem; color: #888; margin-bottom: 4px;">Data last synced: Loading...</div>
+    <div style="font-size: 0.7rem; color: #bbb; font-weight: 500;">Code Version: 27 Jun 15:15 BST</div>
+  </div>
 </div>
 
 <div id="screen-leaderboard" class="screen">
@@ -118,6 +128,7 @@
 
 <div id="screen-groups" class="screen">
   <div class="screen-header"><h2 class="screen-title">Group Stage</h2><button class="btn-back" onclick="show('home')">←</button></div>
+  <p style="font-size: 0.8rem; color: #888;">⚠️ indicates your entered scores differ from official Google Sheet points.</p>
   <div id="groups-data"></div>
   <h2 class="screen-title" style="margin-top: 30px; border-top: 2px solid var(--border); padding-top:20px;">3rd Place Qualifiers</h2>
   <p style="font-size: 0.8rem; color: #888;">Top 8 advance to Knockouts (Green).</p>
@@ -155,14 +166,15 @@
 </div>
 
 <div class="nav-bar">
-  <div class="nav-btn" onclick="show('home')"><span class="nav-icon">🏠</span><span>Home</span></div>
-  <div class="nav-btn" onclick="show('leaderboard')"><span class="nav-icon">🏆</span><span>Board</span></div>
-  <div class="nav-btn" onclick="show('groups')"><span class="nav-icon">📊</span><span>Groups</span></div>
-  <div class="nav-btn" onclick="show('bracket')"><span class="nav-icon">🎯</span><span>Bracket</span></div>
-  <div class="nav-btn" onclick="show('fixtures')"><span class="nav-icon">⚽</span><span>Matches</span></div>
-  <div class="nav-btn" onclick="show('transfers')"><span class="nav-icon">🔄</span><span>Swap</span></div>
+  <div class="nav-btn active" id="nav-home" onclick="show('home')"><span class="nav-icon">🏠</span><span>Home</span></div>
+  <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span class="nav-icon">🏆</span><span>Board</span></div>
+  <div class="nav-btn" id="nav-groups" onclick="show('groups')"><span class="nav-icon">📊</span><span>Groups</span></div>
+  <div class="nav-btn" id="nav-bracket" onclick="show('bracket')"><span class="nav-icon">🎯</span><span>Bracket</span></div>
+  <div class="nav-btn" id="nav-fixtures" onclick="show('fixtures')"><span class="nav-icon">⚽</span><span>Matches</span></div>
+  <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span class="nav-icon">🔄</span><span>Swap</span></div>
 </div>
 
+<!-- Score Modal -->
 <div id="score-modal" class="modal">
   <div class="modal-content">
     <div style="font-size:1.1rem; font-weight:700; margin-bottom:5px; color:var(--primary);">Log Score</div>
@@ -216,7 +228,6 @@
     document.body.appendChild(s); 
   });
 
-  // Extremely Aggressive Normalizer
   function normName(t) {
     if(!t) return "Unknown";
     let lower = String(t).trim().toLowerCase();
@@ -236,21 +247,28 @@
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
   function show(id) {
+    // 1. Hide all screens and remove active state from nav buttons
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-'+id).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     
-    // Auto Scroll Logic for unplayed matches
+    // 2. Show the target screen and highlight the target nav button
+    const targetScreen = document.getElementById('screen-' + id);
+    if(targetScreen) targetScreen.classList.add('active');
+    
+    const targetNav = document.getElementById('nav-' + id);
+    if(targetNav) targetNav.classList.add('active');
+    
+    // 3. Auto-scroll logic (wrapped in a timeout so the DOM registers the height change first)
     if(id === 'fixtures') {
       setTimeout(() => {
         const firstUnplayed = document.querySelector('.match-card.unplayed');
         if (firstUnplayed) {
-          // Calculate exact position minus header height so it doesn't get covered
           const y = firstUnplayed.getBoundingClientRect().top + window.scrollY - 120;
           window.scrollTo({top: y, behavior: 'smooth'});
         } else {
           window.scrollTo(0,0);
         }
-      }, 250);
+      }, 100);
     } else {
       window.scrollTo(0,0);
     }
@@ -269,4 +287,386 @@
   function updateDiagnostics(msg) {
     const dBox = document.getElementById('diag-console');
     if (typeof msg === 'string') { dBox.innerHTML = msg; return; }
-    dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${msg.fixtures?msg.fixtures.length:0}<br>> Scores: ${msg.scores?Object.keys(msg.scores).length:0
+    dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${msg.fixtures?msg.fixtures.length:0}<br>> Scores: ${msg.scores?Object.keys(msg.scores).length:0}<br>> Groups (from sheet): ${msg.groups?msg.groups.length:0}`;
+    const hs = document.getElementById('home-sync-status');
+    if (hs) hs.innerHTML = `Data last synced: <b>${new Date().toLocaleTimeString()}</b>`;
+  }
+
+  function openScoreModal(matchId, t1, t2, h, a, pens) {
+    activeEditMatch = matchId;
+    isKnockoutMatch = parseInt(String(matchId).replace(/\D/g, '')) > 72; 
+    activePenWinner = pens || "";
+    
+    document.getElementById('modal-match-details').innerText = `Match #${matchId} ${isKnockoutMatch ? '(Knockout)' : ''}`;
+    document.getElementById('modal-t1').innerText = t1;
+    document.getElementById('modal-t2').innerText = t2;
+    document.getElementById('inp-h').value = (h !== 'undefined' && h !== '') ? h : '';
+    document.getElementById('inp-a').value = (a !== 'undefined' && a !== '') ? a : '';
+    
+    document.getElementById('score-modal').style.display = 'flex';
+    checkPens();
+  }
+
+  function checkPens() {
+    if(!isKnockoutMatch) return;
+    const h = document.getElementById('inp-h').value;
+    const a = document.getElementById('inp-a').value;
+    const penBox = document.getElementById('pen-selector');
+    
+    if(h !== '' && a !== '' && h === a) {
+      penBox.style.display = 'block';
+      updatePenButtons();
+    } else {
+      penBox.style.display = 'none';
+      activePenWinner = "";
+    }
+  }
+
+  function selectPen(side) { activePenWinner = side; updatePenButtons(); }
+  function updatePenButtons() {
+    document.getElementById('btn-pen-h').classList.remove('active');
+    document.getElementById('btn-pen-a').classList.remove('active');
+    if(activePenWinner === 'H') document.getElementById('btn-pen-h').classList.add('active');
+    if(activePenWinner === 'A') document.getElementById('btn-pen-a').classList.add('active');
+  }
+
+  function closeScoreModal() { document.getElementById('score-modal').style.display = 'none'; activeEditMatch = null; }
+
+  function saveScore() {
+    const h = document.getElementById('inp-h').value; 
+    const a = document.getElementById('inp-a').value;
+    if(h === '' || a === '') { alert("Enter both scores."); return; }
+    if(isKnockoutMatch && h === a && activePenWinner === "") { alert("Please select the penalty shootout winner."); return; }
+    
+    const currentMatchToSave = activeEditMatch;
+    if (!currentMatchToSave) return; 
+
+    if(!appData.scores) appData.scores = {};
+    appData.scores[currentMatchToSave] = { hS: h, aS: a, pens: activePenWinner };
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    
+    renderApp(); closeScoreModal();
+    showToast("Saving score...");
+    jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}&pens=${encodeURIComponent(activePenWinner)}`)
+      .then(() => showToast("Score saved globally!"))
+      .catch(() => showToast("Network Error: Score saved locally.", true));
+  }
+
+  function awardSweet(member, amount) {
+    if(!appData.sweets) appData.sweets = {};
+    appData.sweets[member] = (appData.sweets[member] || 0) + amount;
+    if(appData.sweets[member] < 0) appData.sweets[member] = 0; 
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    renderApp();
+    showToast("Updating Sweets...");
+    jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`);
+  }
+
+  function executeSwap(t1, p1, t2, p2) {
+    if(!confirm(`Swap ${t1} for ${t2}?`)) return;
+    if(!appData.transferLog) appData.transferLog = [];
+    const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
+    appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
+    
+    appData.owners[normName(t1)] = p2; appData.owners[normName(t2)] = p1;
+    localStorage.setItem('wc26_data', JSON.stringify(appData));
+    renderApp(); calcSwaps(); 
+    
+    showToast("Processing Transfer...");
+    jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(normName(t1))}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(normName(t2))}&p2=${encodeURIComponent(p2)}`);
+  }
+
+  function renderApp() {
+    try {
+      if (!appData.owners) return;
+      
+      const owners = {};
+      Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim());
+      owners["Bosnia & Herzegovina"] = "Zelda"; 
+      appData.owners = owners;
+
+      let stats = {}; 
+      let koPoints = {};  
+      ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => koPoints[p] = 0);
+
+      if(appData.fixtures) {
+        appData.fixtures.forEach(m => {
+          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+          if(t1 && !stats[t1]) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp:"?"};
+          if(t2 && !stats[t2]) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp:"?"};
+          
+          if(m.Group) {
+             let gClean = String(m.Group).replace(/Group/ig, '').trim();
+             if(stats[t1] && stats[t1].grp === "?") stats[t1].grp = gClean;
+             if(stats[t2] && stats[t2].grp === "?") stats[t2].grp = gClean;
+          }
+        });
+      }
+
+      if(appData.groups && appData.groups.length > 0) {
+        appData.groups.forEach(row => {
+          let t = normName(row["Team"] || row["Country"]);
+          if(t && stats[t]) {
+             stats[t].grp = String(row["Group"] || "").replace(/Group/ig, '').trim();
+          }
+        });
+      }
+
+      if(appData.scores && appData.fixtures) {
+        Object.entries(appData.scores).forEach(([id, s]) => {
+          let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
+          if(m && s.hS !== "" && s.aS !== "") {
+            let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+            let mNum = parseInt(String(id).replace(/\D/g, ''));
+            const h = parseInt(s.hS), a = parseInt(s.aS);
+            
+            if(mNum > 72) {
+              let winner = null;
+              if (h > a) winner = t1;
+              else if (a > h) winner = t2;
+              else if (s.pens === 'H') winner = t1;
+              else if (s.pens === 'A') winner = t2;
+
+              if(winner && owners[winner]) {
+                let bonus = 0;
+                if (mNum >= 73 && mNum <= 88) bonus = 3;      
+                else if (mNum >= 89 && mNum <= 96) bonus = 5; 
+                else if (mNum >= 97 && mNum <= 100) bonus = 10; 
+                else if (mNum >= 101 && mNum <= 102) bonus = 15; 
+                else if (mNum === 104) bonus = 20;            
+                koPoints[owners[winner]] += bonus;
+              }
+            } 
+            else if (stats[t1] && stats[t2]) {
+              stats[t1].played++; stats[t2].played++;
+              stats[t1].gf += h; stats[t2].gf += a;
+              stats[t1].ga += a; stats[t2].ga += h;
+              stats[t1].gd += (h - a); stats[t2].gd += (a - h);
+              if(h > a) stats[t1].pts += 3; else if(a > h) stats[t2].pts += 3;
+              else { stats[t1].pts += 1; stats[t2].pts += 1; }
+            }
+          }
+        });
+      }
+
+      let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts: koPoints[p], bonus: koPoints[p]});
+      Object.keys(stats).forEach(t => { 
+        if(owners[t] && famStats[owners[t]]) { 
+          let p = owners[t]; 
+          famStats[p].p += stats[t].played; 
+          famStats[p].gd += stats[t].gd; 
+          famStats[p].pts += stats[t].pts; 
+        } 
+      });
+      
+      document.getElementById('leaderboard-data').innerHTML = `<table>
+        <tr>
+          <th style="text-align:left">Family</th>
+          <th>P</th>
+          <th>GD</th>
+          <th>Pts</th>
+          <th>🍬</th>
+          <th>Balance</th>
+        </tr>` +
+        Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
+          let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
+          let diff = s.pts - awarded;
+          let sStat = diff > 0 ? `<span style="color:#d9534f; font-weight:bold; font-size: 0.8rem;">Owe: ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold; font-size: 0.8rem;">Settled</span>`;
+          return `<tr>
+            <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
+            <td>${s.p}</td>
+            <td>${s.gd > 0 ? '+' + s.gd : s.gd}</td>
+            <td><b>${s.pts}</b> <span style="font-size:0.65rem; color:#888;">(+${s.bonus})</span></td>
+            <td style="white-space:nowrap;">
+              <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-</button>
+              <b>${awarded}</b>
+              <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+</button>
+            </td>
+            <td>${sStat}</td>
+          </tr>`;
+        }).join('') + `</table>`;
+
+      const groupsDiv = document.getElementById('groups-data'); groupsDiv.innerHTML = "";
+      let thirdPlaceTeams = [];
+      const groupLetters = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+      
+      groupLetters.forEach(g => {
+        let groupTeams = Object.keys(stats).filter(t => stats[t].grp === g);
+        if(groupTeams.length > 0) {
+          groupTeams.sort((a,b) => stats[b].pts - stats[a].pts || stats[b].gd - stats[a].gd || stats[b].gf - stats[a].gf);
+          if(groupTeams[2]) thirdPlaceTeams.push({t: groupTeams[2], s: stats[groupTeams[2]]});
+
+          let tableRows = groupTeams.map(t => {
+            return `<tr><td style="text-align:left;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd>0?'+'+stats[t].gd:stats[t].gd}</td><td><b>${stats[t].pts}</b></td></tr>`;
+          }).join('');
+
+          groupsDiv.innerHTML += `<div class="table-container" style="margin-bottom: 15px;"><table style="margin:0;"><tr><th style="text-align:left; background:var(--primary); color:white;">Group ${g}</th><th style="background:var(--primary); color:white;">P</th><th style="background:var(--primary); color:white;">GD</th><th style="background:var(--primary); color:white;">Pts</th></tr>${tableRows}</table></div>`;
+        }
+      });
+      if(groupsDiv.innerHTML === "") groupsDiv.innerHTML = "<p style='text-align:center; color:#888;'>No group data found yet.</p>";
+
+      const tpDiv = document.getElementById('third-place-data');
+      if(thirdPlaceTeams.length > 0) {
+        thirdPlaceTeams.sort((a,b) => b.s.pts - a.s.pts || b.s.gd - a.s.gd || b.s.gf - a.s.gf);
+        tpDiv.innerHTML = `<table><tr><th style="text-align:left">Team</th><th>Grp</th><th>GD</th><th>Pts</th></tr>` + 
+          thirdPlaceTeams.map((item, index) => {
+            let bg = index < 8 ? 'class="qual-zone"' : '';
+            return `<tr ${bg}><td style="text-align:left;">${getVisual(item.t)} ${item.t}</td><td>${item.s.grp}</td><td>${item.s.gd>0?'+'+item.s.gd:item.s.gd}</td><td><b>${item.s.pts}</b></td></tr>`;
+          }).join('') + `</table>`;
+      }
+
+      const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
+      ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
+        tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
+          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
+      });
+
+      const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
+      const bGrid = document.getElementById('bracket-data'); bGrid.innerHTML = "";
+      let lastDate = "";
+      
+      const buildMatchCard = (m, isBracket = false) => {
+        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+        if(isNaN(d.getTime())) return "";
+        d.setHours(d.getHours() + 5); 
+        
+        const rawMNum = m["Match #"];
+        const mNum = parseInt(String(rawMNum).replace(/\D/g, ''));
+        
+        const hScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].hS !== "" ? appData.scores[rawMNum].hS : '';
+        const aScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].aS !== "" ? appData.scores[rawMNum].aS : '';
+        const pens = appData.scores && appData.scores[rawMNum] ? appData.scores[rawMNum].pens : '';
+        const isPlayed = hScore !== '' && aScore !== '';
+        
+        let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+        const owner1 = owners[t1] || "";
+        const owner2 = owners[t2] || "";
+
+        let penHTML = pens === 'H' ? `<span class="pen-winner">${t1} (Pens)</span>` : (pens === 'A' ? `<span class="pen-winner">${t2} (Pens)</span>` : '');
+
+        let centerBlock = isPlayed 
+          ? `<div onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '${hScore}', '${aScore}', '${pens}')" style="cursor:pointer;">
+               <div class="score-display">${hScore} - ${aScore}</div>${penHTML}<span class="edit-icon">✏️ Edit</span>
+             </div>`
+          : `<div>
+               <div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div>
+               <button class="score-btn" onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '', '', '')">Add Score</button>
+             </div>`;
+
+        let cardClass = isPlayed ? "match-card" : "match-card unplayed";
+        let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+        let dateStr = "";
+        if(!isBracket && dateHeader !== lastDate) { dateStr = `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
+
+        return `${dateStr}<div class="${cardClass}">
+            <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.7rem; color:#888;">${owner1}</span></div>
+            ${centerBlock}
+            <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.7rem; color:#888;">${owner2}</span></div>
+          </div>`;
+      };
+
+      let bracketHTML = { r32:"", r16:"", qf:"", sf:"", fn:"" };
+
+      if(appData.fixtures) {
+        appData.fixtures.forEach(m => {
+          fGrid.innerHTML += buildMatchCard(m, false);
+          
+          let mNum = parseInt(String(m["Match #"]).replace(/\D/g, ''));
+          if(!isNaN(mNum)) {
+            if(mNum >= 73 && mNum <= 88) bracketHTML.r32 += buildMatchCard(m, true);
+            else if(mNum >= 89 && mNum <= 96) bracketHTML.r16 += buildMatchCard(m, true);
+            else if(mNum >= 97 && mNum <= 100) bracketHTML.qf += buildMatchCard(m, true);
+            else if(mNum >= 101 && mNum <= 102) bracketHTML.sf += buildMatchCard(m, true);
+            else if(mNum >= 103) bracketHTML.fn += buildMatchCard(m, true);
+          }
+        });
+      }
+
+      if (bracketHTML.r32 === "") {
+        bGrid.innerHTML = "<p style='text-align:center; margin-top:40px; color:#888;'>Knockout bracket will populate when matches 73-104 are added to the Fixtures sheet.</p>";
+      } else {
+        bGrid.innerHTML = `
+          <div class="ko-round-header">Round of 32</div>${bracketHTML.r32}
+          <div class="ko-round-header">Round of 16</div>${bracketHTML.r16}
+          <div class="ko-round-header">Quarter-Finals</div>${bracketHTML.qf}
+          <div class="ko-round-header">Semi-Finals</div>${bracketHTML.sf}
+          <div class="ko-round-header">Finals / 3rd Place</div>${bracketHTML.fn}
+        `;
+      }
+
+      let logHTML = `
+        <div class="log-item">
+          <div class="log-date">Pre-Tournament</div>
+          <b>Colman</b> traded <b>Canada</b> to <b>Connie</b> for <b>Norway</b>
+        </div>`;
+      if (appData.transferLog && appData.transferLog.length > 0) {
+        logHTML = appData.transferLog.slice().reverse().map(l => `
+          <div class="log-item">
+            <div class="log-date">${l.date}</div>
+            <b>${l.p1}</b> traded <b>${l.t1}</b> to <b>${l.p2}</b> for <b>${l.t2}</b>
+          </div>
+        `).join('') + logHTML;
+      }
+      document.getElementById('history-data').innerHTML = logHTML;
+
+    } catch(err) {
+      updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}`);
+    }
+  }
+
+  function calcSwaps() {
+    const p1 = document.getElementById('t-person1').value;
+    const p2 = document.getElementById('t-person2').value;
+    const res = document.getElementById('swap-results');
+    
+    if(!p1 || !p2 || p1 === p2) { res.innerHTML = ""; return; }
+    if(!appData.rankings || Object.keys(appData.rankings).length === 0) { res.innerHTML = "<i>Rankings data missing. Open Diagnostics to test.</i>"; return; }
+
+    const p1Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p1);
+    const p2Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p2);
+    let validSwaps = [];
+
+    p1Teams.forEach(t1 => {
+      p2Teams.forEach(t2 => {
+        let r1 = parseInt(appData.rankings[normName(t1)]), r2 = parseInt(appData.rankings[normName(t2)]);
+        if (!isNaN(r1) && !isNaN(r2) && Math.abs(r1 - r2) <= 10) validSwaps.push({t1, r1, t2, r2});
+      });
+    });
+
+    if (validSwaps.length === 0) { res.innerHTML = `<i>No valid swaps within 10 rank places.</i>`; return; }
+
+    res.innerHTML = validSwaps.map(s => `
+      <div class="swap-card">
+        <div class="swap-teams">
+          <div class="swap-side"><div class="swap-owner" style="color: var(--${p1});">${p1}</div>${getVisual(s.t1)}<br>${s.t1}<div class="swap-rank">Rank: ${s.r1}</div></div>
+          <div class="swap-icon">🔄</div>
+          <div class="swap-side"><div class="swap-owner" style="color: var(--${p2});">${p2}</div>${getVisual(s.t2)}<br>${s.t2}<div class="swap-rank">Rank: ${s.r2}</div></div>
+        </div>
+        <button class="btn-swap" onclick="executeSwap('${s.t1}', '${p1}', '${s.t2}', '${p2}')">Confirm Swap</button>
+      </div>
+    `).join('');
+  }
+
+  function forceHardRefresh() {
+    updateDiagnostics("> Fetching live data...");
+    jsonp(SCRIPT_URL + "?action=getAll").then(data => {
+      if(data && data.owners) {
+        appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData));
+        updateDiagnostics(appData); renderApp(); showToast("Sync Complete!"); show('home');
+      }
+    }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); });
+  }
+
+  async function init() {
+    const cached = localStorage.getItem('wc26_data');
+    if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
+    try { 
+      const data = await jsonp(SCRIPT_URL + "?action=getAll"); 
+      if(data && data.owners) { appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData)); updateDiagnostics(appData); renderApp(); }
+    } catch(e) {}
+  }
+  
+  init();
+</script>
+</body>
+</html>
