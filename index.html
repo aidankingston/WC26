@@ -19,7 +19,7 @@
   }
 
   * { box-sizing: border-box; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; scroll-behavior: smooth; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
   .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; user-select: none; position: sticky; top:0; z-index: 2000;}
   .screen { display: none; padding: 16px; } .screen.active { display: block; }
@@ -44,7 +44,7 @@
   th { position: sticky; top: 0; padding: 12px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--border); background: #f8f9fa; z-index: 10; }
   td { padding: 12px 6px; text-align: center; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
   .color-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .qual-zone { background-color: rgba(40, 167, 69, 0.1); } /* Green tint for 3rd place advancers */
+  .qual-zone { background-color: rgba(40, 167, 69, 0.1); } 
 
   .search-input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; }
   .day-header { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; background: var(--border); padding: 6px 12px; border-radius: 6px; }
@@ -66,7 +66,7 @@
   .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-  .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
+  .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px 6px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
   .btn-sweet.minus { background: #f8f9fa; color: #555; border: 1px solid #ccc; }
 
   .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
@@ -78,11 +78,11 @@
   .pen-btn.active { background: #28A745; color: white; border-color: #28A745; }
   .modal-actions { display: flex; gap: 10px; }
   .btn-save { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  .btn-cancel { background: #e9ecef; color: #495057; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
   .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
   .toast.show { opacity: 1; }
   .toast.error { background: #DC3545; }
-  .warning-icon { color: #DC3545; font-size: 1rem; cursor: help; }
 </style>
 </head>
 <body>
@@ -118,7 +118,6 @@
 
 <div id="screen-groups" class="screen">
   <div class="screen-header"><h2 class="screen-title">Group Stage</h2><button class="btn-back" onclick="show('home')">←</button></div>
-  <p style="font-size: 0.8rem; color: #888;">⚠️ indicates your entered scores differ from official Google Sheet points.</p>
   <div id="groups-data"></div>
   <h2 class="screen-title" style="margin-top: 30px; border-top: 2px solid var(--border); padding-top:20px;">3rd Place Qualifiers</h2>
   <p style="font-size: 0.8rem; color: #888;">Top 8 advance to Knockouts (Green).</p>
@@ -173,7 +172,6 @@
       <div style="font-weight:700; color:#888;">VS</div>
       <div style="text-align:center; width:40%;"><span id="modal-t2" style="font-weight:700; font-size:0.85rem;"></span><br><br><input type="number" id="inp-a" class="modal-input" pattern="[0-9]*" inputmode="numeric" oninput="checkPens()"></div>
     </div>
-    
     <div id="pen-selector" class="pen-selector">
       <div style="font-size:0.8rem; font-weight:700; margin-bottom:8px;">Who won on penalties?</div>
       <div style="display:flex; justify-content:space-around;">
@@ -181,7 +179,6 @@
         <button id="btn-pen-a" class="pen-btn" onclick="selectPen('A')">Away</button>
       </div>
     </div>
-
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeScoreModal()">Cancel</button>
       <button class="btn-save" onclick="saveScore()">Save Score</button>
@@ -191,7 +188,7 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
+  const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   let appData = {};
   let devClickCount = 0;
@@ -219,6 +216,7 @@
     document.body.appendChild(s); 
   });
 
+  // Extremely Aggressive Normalizer
   function normName(t) {
     if(!t) return "Unknown";
     let lower = String(t).trim().toLowerCase();
@@ -227,7 +225,7 @@
     if (lower === "usa" || lower === "us" || lower.includes("united states")) return "United States";
     if (lower.includes("czech")) return "Czechia";
     if (lower.includes("korea rep") || lower.includes("south korea")) return "South Korea";
-    if (lower.includes("ivory") || lower.includes("côte")) return "Ivory Coast";
+    if (lower.includes("ivory") || lower.includes("côte") || lower.includes("cote d")) return "Ivory Coast";
     if (lower.includes("congo dr") || lower.includes("dr congo")) return "DR Congo";
     if (lower === "cape verde" || lower.includes("cabo verde")) return "Cape Verde";
     if (lower.includes("curacao") || lower.includes("curaçao")) return "Curacao";
@@ -239,19 +237,23 @@
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
     
-    // Auto-Scroll feature when opening Matches
+    // Auto Scroll Logic for unplayed matches
     if(id === 'fixtures') {
       setTimeout(() => {
         const firstUnplayed = document.querySelector('.match-card.unplayed');
         if (firstUnplayed) {
-          firstUnplayed.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Calculate exact position minus header height so it doesn't get covered
+          const y = firstUnplayed.getBoundingClientRect().top + window.scrollY - 120;
+          window.scrollTo({top: y, behavior: 'smooth'});
+        } else {
+          window.scrollTo(0,0);
         }
-      }, 100);
+      }, 250);
+    } else {
+      window.scrollTo(0,0);
     }
-    window.scrollTo(0,0);
   }
 
   function filterMatches() {
@@ -267,323 +269,4 @@
   function updateDiagnostics(msg) {
     const dBox = document.getElementById('diag-console');
     if (typeof msg === 'string') { dBox.innerHTML = msg; return; }
-    dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${msg.fixtures?msg.fixtures.length:0}<br>> Scores: ${msg.scores?Object.keys(msg.scores).length:0}<br>> Config: ${msg.owners?Object.keys(msg.owners).length:0}`;
-    const hs = document.getElementById('home-sync-status');
-    if (hs) hs.innerHTML = `Last Live Sync: <b>${new Date().toLocaleTimeString()}</b>`;
-  }
-
-  // --- SCORE MODAL & PENALTIES ---
-  function openScoreModal(matchId, t1, t2, h, a, pens) {
-    activeEditMatch = matchId;
-    isKnockoutMatch = parseInt(matchId) > 72; // WC26 format: Match 73+ is knockouts
-    activePenWinner = pens || "";
-    
-    document.getElementById('modal-match-details').innerText = `Match #${matchId} ${isKnockoutMatch ? '(Knockout)' : ''}`;
-    document.getElementById('modal-t1').innerText = t1;
-    document.getElementById('modal-t2').innerText = t2;
-    document.getElementById('inp-h').value = (h !== 'undefined' && h !== '') ? h : '';
-    document.getElementById('inp-a').value = (a !== 'undefined' && a !== '') ? a : '';
-    
-    document.getElementById('score-modal').style.display = 'flex';
-    checkPens();
-  }
-
-  function checkPens() {
-    if(!isKnockoutMatch) return;
-    const h = document.getElementById('inp-h').value;
-    const a = document.getElementById('inp-a').value;
-    const penBox = document.getElementById('pen-selector');
-    
-    if(h !== '' && a !== '' && h === a) {
-      penBox.style.display = 'block';
-      updatePenButtons();
-    } else {
-      penBox.style.display = 'none';
-      activePenWinner = "";
-    }
-  }
-
-  function selectPen(side) { activePenWinner = side; updatePenButtons(); }
-  function updatePenButtons() {
-    document.getElementById('btn-pen-h').classList.remove('active');
-    document.getElementById('btn-pen-a').classList.remove('active');
-    if(activePenWinner === 'H') document.getElementById('btn-pen-h').classList.add('active');
-    if(activePenWinner === 'A') document.getElementById('btn-pen-a').classList.add('active');
-  }
-
-  function closeScoreModal() { document.getElementById('score-modal').style.display = 'none'; activeEditMatch = null; }
-
-  function saveScore() {
-    const h = document.getElementById('inp-h').value; 
-    const a = document.getElementById('inp-a').value;
-    if(h === '' || a === '') { alert("Enter both scores."); return; }
-    if(isKnockoutMatch && h === a && activePenWinner === "") { alert("Please select the penalty shootout winner."); return; }
-    
-    const currentMatchToSave = activeEditMatch;
-    if (!currentMatchToSave) return; 
-
-    if(!appData.scores) appData.scores = {};
-    appData.scores[currentMatchToSave] = { hS: h, aS: a, pens: activePenWinner };
-    localStorage.setItem('wc26_data', JSON.stringify(appData));
-    
-    renderApp(); closeScoreModal();
-    showToast("Saving score...");
-    jsonp(`${SCRIPT_URL}?action=update&id=${encodeURIComponent(currentMatchToSave)}&h=${encodeURIComponent(h)}&a=${encodeURIComponent(a)}&pens=${encodeURIComponent(activePenWinner)}`)
-      .then(() => showToast("Score saved globally!"))
-      .catch(() => showToast("Network Error: Score saved locally.", true));
-  }
-
-  function awardSweet(member, amount) {
-    if(!appData.sweets) appData.sweets = {};
-    appData.sweets[member] = (appData.sweets[member] || 0) + amount;
-    if(appData.sweets[member] < 0) appData.sweets[member] = 0; 
-    localStorage.setItem('wc26_data', JSON.stringify(appData));
-    renderApp();
-    showToast("Updating Sweets...");
-    jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`);
-  }
-
-  // --- CORE CALCULATION ENGINE ---
-  function renderApp() {
-    try {
-      if (!appData.owners) return;
-      
-      const owners = {};
-      Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim());
-      owners["Bosnia & Herzegovina"] = "Zelda"; // Force fix
-      appData.owners = owners;
-
-      // Map Official Group Points if available
-      const offGroups = {};
-      if(appData.groups) {
-        appData.groups.forEach(r => { if(r.Team) offGroups[normName(r.Team)] = parseInt(r.Pts || r.Points || 0); });
-      }
-
-      let stats = {}; 
-      let groupsMap = {}; // Maps team to Group Letter
-      let koPoints = {};  // Tracks bonus points per family member
-      ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => koPoints[p] = 0);
-
-      // Initialize teams & assign groups
-      if(appData.fixtures) {
-        appData.fixtures.forEach(m => {
-          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-          let mNum = parseInt(m["Match #"]);
-          
-          if(t1 && !stats[t1]) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp:"?"};
-          if(t2 && !stats[t2]) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp:"?"};
-          
-          // Basic group assignment logic (Matches 1-72 are groups)
-          if(mNum <= 72 && m.Group) {
-            stats[t1].grp = m.Group.replace('Group ', '').trim();
-            stats[t2].grp = m.Group.replace('Group ', '').trim();
-          }
-        });
-      }
-
-      // Process Scores (Group Stage + Knockout Bonuses)
-      if(appData.scores && appData.fixtures) {
-        Object.entries(appData.scores).forEach(([id, s]) => {
-          let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
-          if(m && s.hS !== "" && s.aS !== "") {
-            let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-            let mNum = parseInt(id);
-            const h = parseInt(s.hS), a = parseInt(s.aS);
-            
-            // Knockout Bonus Logic (Matches 73+)
-            if(mNum > 72) {
-              let winner = null;
-              if (h > a) winner = t1;
-              else if (a > h) winner = t2;
-              else if (s.pens === 'H') winner = t1;
-              else if (s.pens === 'A') winner = t2;
-
-              if(winner && owners[winner]) {
-                let bonus = 0;
-                if (mNum >= 73 && mNum <= 88) bonus = 3;      // R32 -> L16
-                else if (mNum >= 89 && mNum <= 96) bonus = 5; // L16 -> QF
-                else if (mNum >= 97 && mNum <= 100) bonus = 10; // QF -> SF
-                else if (mNum >= 101 && mNum <= 102) bonus = 15; // SF -> Final
-                else if (mNum === 104) bonus = 20;            // Final Win
-                koPoints[owners[winner]] += bonus;
-              }
-            } 
-            // Group Stage Standard Points
-            else if (stats[t1] && stats[t2]) {
-              stats[t1].played++; stats[t2].played++;
-              stats[t1].gf += h; stats[t2].gf += a;
-              stats[t1].ga += a; stats[t2].ga += h;
-              stats[t1].gd += (h - a); stats[t2].gd += (a - h);
-              if(h > a) stats[t1].pts += 3; else if(a > h) stats[t2].pts += 3;
-              else { stats[t1].pts += 1; stats[t2].pts += 1; }
-            }
-          }
-        });
-      }
-
-      // Family Leaderboard Generation
-      let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts: koPoints[p], bonus: koPoints[p]});
-      Object.keys(stats).forEach(t => { 
-        if(owners[t]) { 
-          let p = owners[t]; 
-          if(famStats[p]) { 
-            famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; 
-          }
-        } 
-      });
-      
-      document.getElementById('leaderboard-data').innerHTML = `<table>
-        <tr><th style="text-align:left">Family</th><th>Pts (Base+KO)</th><th>🍬 Bal</th><th>Redeem</th></tr>` +
-        Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
-          let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
-          let diff = s.pts - awarded;
-          let sStat = diff > 0 ? `<span style="color:#d9534f; font-weight:bold;">Owe ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold;">Settled</span>`;
-          return `<tr>
-            <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
-            <td><b>${s.pts}</b> <span style="font-size:0.7rem; color:#888;">(+${s.bonus})</span></td>
-            <td>${sStat}</td>
-            <td style="white-space:nowrap;">
-              <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-</button>
-              <b>${awarded}</b>
-              <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+</button>
-            </td>
-          </tr>`;
-        }).join('') + `</table>`;
-
-      // Render Groups A-L
-      const groupsDiv = document.getElementById('groups-data'); groupsDiv.innerHTML = "";
-      let thirdPlaceTeams = [];
-      
-      const groupLetters = "ABCDEFGHIJKL".split('');
-      groupLetters.forEach(g => {
-        let groupTeams = Object.keys(stats).filter(t => stats[t].grp === g);
-        if(groupTeams.length > 0) {
-          // Sort rules: Points, then GD, then GF
-          groupTeams.sort((a,b) => stats[b].pts - stats[a].pts || stats[b].gd - stats[a].gd || stats[b].gf - stats[a].gf);
-          
-          if(groupTeams[2]) thirdPlaceTeams.push({t: groupTeams[2], s: stats[groupTeams[2]]});
-
-          let tableRows = groupTeams.map(t => {
-            let warn = "";
-            if(offGroups[t] !== undefined && offGroups[t] !== stats[t].pts) {
-              warn = `<span class="warning-icon" title="Official Sheet says ${offGroups[t]} pts">⚠️</span>`;
-            }
-            return `<tr><td style="text-align:left;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd>0?'+'+stats[t].gd:stats[t].gd}</td><td><b>${stats[t].pts}</b> ${warn}</td></tr>`;
-          }).join('');
-
-          groupsDiv.innerHTML += `<div class="table-container" style="margin-bottom: 15px;"><table style="margin:0;"><tr><th style="text-align:left; background:var(--primary); color:white;">Group ${g}</th><th style="background:var(--primary); color:white;">P</th><th style="background:var(--primary); color:white;">GD</th><th style="background:var(--primary); color:white;">Pts</th></tr>${tableRows}</table></div>`;
-        }
-      });
-
-      // 3rd Place Qualifiers
-      const tpDiv = document.getElementById('third-place-data');
-      if(thirdPlaceTeams.length > 0) {
-        thirdPlaceTeams.sort((a,b) => b.s.pts - a.s.pts || b.s.gd - a.s.gd || b.s.gf - a.s.gf);
-        tpDiv.innerHTML = `<table><tr><th style="text-align:left">Team</th><th>Grp</th><th>GD</th><th>Pts</th></tr>` + 
-          thirdPlaceTeams.map((item, index) => {
-            let bg = index < 8 ? 'class="qual-zone"' : '';
-            return `<tr ${bg}><td style="text-align:left;">${getVisual(item.t)} ${item.t}</td><td>${item.s.grp}</td><td>${item.s.gd}</td><td><b>${item.s.pts}</b></td></tr>`;
-          }).join('') + `</table>`;
-      }
-
-      // Teams Table
-      const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
-      ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
-        tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
-          Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
-      });
-
-      // Fixtures & Bracket Generator
-      const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
-      const bGrid = document.getElementById('bracket-data'); bGrid.innerHTML = "";
-      let lastDate = "";
-      
-      const buildMatchCard = (m, isBracket = false) => {
-        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
-        if(isNaN(d.getTime())) return "";
-        d.setHours(d.getHours() + 5); 
-        
-        const mNum = m["Match #"];
-        const hScore = appData.scores && appData.scores[mNum] && appData.scores[mNum].hS !== "" ? appData.scores[mNum].hS : '';
-        const aScore = appData.scores && appData.scores[mNum] && appData.scores[mNum].aS !== "" ? appData.scores[mNum].aS : '';
-        const pens = appData.scores && appData.scores[mNum] ? appData.scores[mNum].pens : '';
-        const isPlayed = hScore !== '' && aScore !== '';
-        
-        let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-        const owner1 = owners[t1] || "N/A";
-        const owner2 = owners[t2] || "N/A";
-
-        let penHTML = pens === 'H' ? `<span class="pen-winner">${t1} (Pens)</span>` : (pens === 'A' ? `<span class="pen-winner">${t2} (Pens)</span>` : '');
-
-        let centerBlock = isPlayed 
-          ? `<div onclick="openScoreModal('${mNum}', '${t1}', '${t2}', '${hScore}', '${aScore}', '${pens}')" style="cursor:pointer;">
-               <div class="score-display">${hScore} - ${aScore}</div>${penHTML}<span class="edit-icon">✏️ Edit</span>
-             </div>`
-          : `<div>
-               <div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div>
-               <button class="score-btn" onclick="openScoreModal('${mNum}', '${t1}', '${t2}', '', '', '')">Add Score</button>
-             </div>`;
-
-        let cardClass = isPlayed ? "match-card" : "match-card unplayed";
-        let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
-        let dateStr = "";
-        if(!isBracket && dateHeader !== lastDate) { dateStr = `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
-
-        return `${dateStr}<div class="${cardClass}" id="match-${mNum}">
-            <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.75rem; color:#888;">(${owner1})</span></div>
-            ${centerBlock}
-            <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.75rem; color:#888;">(${owner2})</span></div>
-          </div>`;
-      };
-
-      let bracketHTML = { r32:"", r16:"", qf:"", sf:"", fn:"" };
-
-      if(appData.fixtures) {
-        appData.fixtures.forEach(m => {
-          fGrid.innerHTML += buildMatchCard(m, false);
-          
-          let mNum = parseInt(m["Match #"]);
-          if(mNum >= 73 && mNum <= 88) bracketHTML.r32 += buildMatchCard(m, true);
-          else if(mNum >= 89 && mNum <= 96) bracketHTML.r16 += buildMatchCard(m, true);
-          else if(mNum >= 97 && mNum <= 100) bracketHTML.qf += buildMatchCard(m, true);
-          else if(mNum >= 101 && mNum <= 102) bracketHTML.sf += buildMatchCard(m, true);
-          else if(mNum >= 103) bracketHTML.fn += buildMatchCard(m, true);
-        });
-      }
-
-      bGrid.innerHTML = `
-        <div class="ko-round-header">Round of 32</div>${bracketHTML.r32}
-        <div class="ko-round-header">Round of 16</div>${bracketHTML.r16}
-        <div class="ko-round-header">Quarter-Finals</div>${bracketHTML.qf}
-        <div class="ko-round-header">Semi-Finals</div>${bracketHTML.sf}
-        <div class="ko-round-header">Finals / 3rd Place</div>${bracketHTML.fn}
-      `;
-
-    } catch(err) {
-      updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}`);
-    }
-  }
-
-  function forceHardRefresh() {
-    updateDiagnostics("> Fetching live data...");
-    jsonp(SCRIPT_URL + "?action=getAll").then(data => {
-      if(data && data.owners) {
-        appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData));
-        updateDiagnostics(appData); renderApp(); showToast("Sync Complete!"); show('home');
-      }
-    }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); });
-  }
-
-  async function init() {
-    const cached = localStorage.getItem('wc26_data');
-    if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
-    try { 
-      const data = await jsonp(SCRIPT_URL + "?action=getAll"); 
-      if(data && data.owners) { appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData)); updateDiagnostics(appData); renderApp(); }
-    } catch(e) {}
-  }
-  
-  init();
-</script>
-</body>
-</html>
+    dBox.innerHTML = `> Sync: ${new Date().toLocaleTimeString()}<br>> Fixtures: ${msg.fixtures?msg.fixtures.length:0}<br>> Scores: ${msg.scores?Object.keys(msg.scores).length:0
