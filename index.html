@@ -8,16 +8,6 @@
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
   :root { --primary: #002366; --bg: #f4f6f9; --card: #ffffff; --text: #111424; --border: #eef2f5; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
   
-  @media (prefers-color-scheme: dark) {
-    :root { --primary: #58a6ff; --bg: #0d1117; --card: #161b22; --text: #c9d1d9; --border: #30363d; }
-    .header { background: #161b22; border-bottom: 1px solid var(--border); color: var(--text); }
-    th { background: #21262d; color: #8b949e; }
-    td { border-bottom: 1px solid var(--border); }
-    .day-header, .time-block, .ko-round-header { background: #21262d; color: var(--text); }
-    .btn-back, select, .modal-content { background: #21262d; color: var(--text); border: 1px solid var(--border); }
-    .search-input, .modal-input { background: #0d1117; color: var(--text); border: 1px solid var(--border); }
-  }
-
   * { box-sizing: border-box; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
@@ -49,7 +39,7 @@
   .day-header { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; background: var(--border); padding: 6px 12px; border-radius: 6px; }
   
   .match-card { background: var(--card); padding: 16px 12px; border-radius: 12px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; border: 1px solid var(--border); text-align: center; gap: 10px; }
-  .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; margin-bottom: 5px;}
+  .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; margin-bottom: 5px; display:inline-block; }
   
   .score-btn { background: #e9ecef; color: var(--primary); padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; width: 100%; cursor: pointer; }
   .score-display { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
@@ -117,7 +107,7 @@
   
   <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; color: #888;">
     <div id="home-sync-status" style="margin-bottom: 4px;">Data last synced: Loading...</div>
-    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: Heavy Knockouts</div>
+    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: 29 Jun - Full Knockouts</div>
   </div>
 </div>
 
@@ -130,7 +120,6 @@
   <div class="screen-header"><h2 class="screen-title">Group Stage</h2><button class="btn-back" onclick="show('home')">←</button></div>
   <div id="groups-data"></div>
   <h2 class="screen-title" style="margin-top: 30px; border-top: 2px solid var(--border); padding-top:20px;">3rd Place Qualifiers</h2>
-  <p style="font-size: 0.8rem; color: #888; margin-top: 4px;">Top 8 advance to Knockouts (Green).</p>
   <div class="table-container"><div id="third-place-data"></div></div>
 </div>
 
@@ -197,10 +186,7 @@
 </div>
 
 <script>
-  // ==========================================
-  // CONFIGURATION
-  // ==========================================
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec"; // <-- PUT YOUR APPS SCRIPT URL HERE
+  const SCRIPT_URL = "PASTE_YOUR_SCRIPT_URL_HERE"; 
   
   const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Korea Republic":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","USA":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Türkiye":"tr","Germany":"de","Curacao":"cw","Curaçao":"cw","Ivory Coast":"ci","Côte d'Ivoire":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","IR Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Cabo Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Congo DR":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
@@ -226,9 +212,6 @@
   let isKnockoutMatch = false;
   let toastTimeout;
 
-  // ==========================================
-  // UTILITIES
-  // ==========================================
   function showToast(msg, isError = false) {
     const toast = document.getElementById('toast');
     toast.innerText = msg;
@@ -265,13 +248,11 @@
   }
 
   function getVisual(t) { 
-    let code = countryCodes[normName(t)] || 'xx';
-    return `<img src="https://flagcdn.com/w40/${code}.png" class="flag">`; 
+    if(String(t).includes("Winner") || String(t).includes("TBD")) return `<div class="flag" style="background:#eee; display:inline-block; border:1px dashed #ccc; border-radius:50%; width:28px; height:28px; margin-bottom:5px;"></div>`;
+    let code = countryCodes[normName(t)];
+    return code ? `<img src="https://flagcdn.com/w40/${code}.png" class="flag">` : `<div class="flag" style="background:#eee; display:inline-block; border:1px dashed #ccc; width:32px; height:22px; margin-bottom:5px;"></div>`; 
   }
 
-  // ==========================================
-  // NAVIGATION & UI
-  // ==========================================
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
   function show(id) {
@@ -312,9 +293,6 @@
     if (hs) hs.innerHTML = `Data last synced: <b>${new Date().toLocaleTimeString()}</b>`;
   }
 
-  // ==========================================
-  // MODAL LOGIC
-  // ==========================================
   function openScoreModal(matchId, t1, t2, h, a, pens) {
     activeEditMatch = matchId;
     isKnockoutMatch = parseInt(String(matchId).replace(/\D/g, '')) > 72; 
@@ -375,9 +353,6 @@
       .catch(() => showToast("Network Error: Score saved locally.", true));
   }
 
-  // ==========================================
-  // DATA ACTIONS
-  // ==========================================
   function awardSweet(member, amount) {
     if(!appData.sweets) appData.sweets = {};
     appData.sweets[member] = (appData.sweets[member] || 0) + amount;
@@ -401,9 +376,6 @@
     jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(normName(t1))}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(normName(t2))}&p2=${encodeURIComponent(p2)}`);
   }
 
-  // ==========================================
-  // CORE RENDERING ENGINE
-  // ==========================================
   function renderApp() {
     try {
       if (!appData.owners) return;
@@ -421,23 +393,44 @@
         GROUP_CONFIG[g].forEach(t => groupLookup[normName(t)] = g);
       }
 
-      if(appData.fixtures) {
-        appData.fixtures.forEach(m => {
-          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-          if(t1 && !stats[t1]) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t1] || "?"};
-          if(t2 && !stats[t2]) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t2] || "?"};
-        });
-      }
+      // 1. Base fixtures merging logic to handle hardcoded user inputs alongside sheet data
+      let mergedFixtures = appData.fixtures ? [...appData.fixtures] : [];
+      const hardcodedKnockouts = [
+        {"Match #": 74, "Date & Time (US EDT/UTC-4)": "2026-06-29T21:30:00+01:00", "Team 1": "Germany", "Team 2": "Paraguay"},
+        {"Match #": 75, "Date & Time (US EDT/UTC-4)": "2026-06-30T02:00:00+01:00", "Team 1": "Netherlands", "Team 2": "Morocco"},
+        {"Match #": 76, "Date & Time (US EDT/UTC-4)": "2026-06-29T18:00:00+01:00", "Team 1": "Brazil", "Team 2": "Japan"},
+        {"Match #": 77, "Date & Time (US EDT/UTC-4)": "2026-06-30T22:00:00+01:00", "Team 1": "France", "Team 2": "Sweden"},
+        {"Match #": 78, "Date & Time (US EDT/UTC-4)": "2026-06-30T18:00:00+01:00", "Team 1": "Côte d'Ivoire", "Team 2": "Norway"},
+        {"Match #": 79, "Date & Time (US EDT/UTC-4)": "2026-07-01T02:00:00+01:00", "Team 1": "Mexico", "Team 2": "Ecuador"},
+        {"Match #": 89, "Date & Time (US EDT/UTC-4)": "2026-07-04T22:00:00+01:00", "Team 1": "Winner Match 74", "Team 2": "Winner Match 77"},
+        {"Match #": 90, "Date & Time (US EDT/UTC-4)": "2026-07-04T18:00:00+01:00", "Team 1": "Canada", "Team 2": "Winner Match 75"},
+        {"Match #": 91, "Date & Time (US EDT/UTC-4)": "2026-07-05T21:00:00+01:00", "Team 1": "Winner Match 76", "Team 2": "Winner Match 78"},
+        {"Match #": 92, "Date & Time (US EDT/UTC-4)": "2026-07-06T01:00:00+01:00", "Team 1": "Winner Match 79", "Team 2": "Winner Match 80"}
+      ];
 
-      if(appData.scores && appData.fixtures) {
+      hardcodedKnockouts.forEach(hk => {
+        const existingIdx = mergedFixtures.findIndex(f => String(f["Match #"]).replace(/\D/g, '') === String(hk["Match #"]));
+        if(existingIdx === -1) mergedFixtures.push(hk);
+      });
+      mergedFixtures.sort((a,b) => parseInt(String(a["Match #"]).replace(/\D/g, '')) - parseInt(String(b["Match #"]).replace(/\D/g, '')));
+
+      // Build group stats logic
+      mergedFixtures.forEach(m => {
+        let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+        if(t1 && !stats[t1] && !t1.includes("Winner")) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t1] || "?"};
+        if(t2 && !stats[t2] && !t2.includes("Winner")) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t2] || "?"};
+      });
+
+      // Calculate Scores
+      if(appData.scores) {
         Object.entries(appData.scores).forEach(([id, s]) => {
-          let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
+          let m = mergedFixtures.find(x => String(x["Match #"]).replace(/\D/g, '') === String(id));
           if(m && s.hS !== "" && s.aS !== "") {
             let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
             let mNum = parseInt(String(id).replace(/\D/g, ''));
             const h = parseInt(s.hS), a = parseInt(s.aS);
             
-            // Heavy Knockout Scoring Logic
+            // Scaled Knockout Logic
             if(mNum > 72) {
               let winner = null;
               if (h > a) winner = t1;
@@ -447,15 +440,15 @@
 
               if(winner && owners[winner]) {
                 let bonus = 0;
-                if (mNum >= 73 && mNum <= 88) bonus = 5;      // Round of 32
-                else if (mNum >= 89 && mNum <= 96) bonus = 7; // Round of 16
-                else if (mNum >= 97 && mNum <= 100) bonus = 10; // Quarter-finals
-                else if (mNum >= 101 && mNum <= 102) bonus = 30; // Semi-finals
-                else if (mNum === 104) bonus = 50;            // Final
+                if (mNum >= 73 && mNum <= 88) bonus = 5;      
+                else if (mNum >= 89 && mNum <= 96) bonus = 7; 
+                else if (mNum >= 97 && mNum <= 100) bonus = 10; 
+                else if (mNum >= 101 && mNum <= 102) bonus = 30; 
+                else if (mNum === 104) bonus = 50;            
                 koPoints[owners[winner]] += bonus;
               }
             } 
-            // Group Logic (Matches 1-72)
+            // Group Logic (Match 1-72)
             else if (stats[t1] && stats[t2]) {
               stats[t1].played++; stats[t2].played++;
               stats[t1].gf += h; stats[t2].gf += a;
@@ -551,7 +544,10 @@
       const buildMatchCard = (m, isBracket = false) => {
         let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
         if(isNaN(d.getTime())) return "";
-        d.setHours(d.getHours() + 5); 
+        // Only adjust if the string is exactly the base sheet format, otherwise leave alone as ISO covers it
+        if (!String(m["Date & Time (US EDT/UTC-4)"]).includes("+")) {
+           d.setHours(d.getHours() + 5); 
+        }
         
         const rawMNum = m["Match #"];
         const mNum = parseInt(String(rawMNum).replace(/\D/g, ''));
@@ -562,8 +558,8 @@
         const isPlayed = hScore !== '' && aScore !== '';
         
         let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-        const owner1 = owners[t1] || "";
-        const owner2 = owners[t2] || "";
+        const owner1 = owners[t1] || "Unassigned";
+        const owner2 = owners[t2] || "Unassigned";
 
         let penHTML = pens === 'H' ? `<span class="pen-winner">${t1} (Pens)</span>` : (pens === 'A' ? `<span class="pen-winner">${t2} (Pens)</span>` : '');
 
@@ -582,40 +578,33 @@
         if(!isBracket && dateHeader !== lastDate) { dateStr = `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
 
         return `${dateStr}<div class="${cardClass}">
-            <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.7rem; color:#888;">${owner1}</span></div>
+            <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner1 !== "Unassigned" ? owner1 : ''}</span></div>
             ${centerBlock}
-            <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.7rem; color:#888;">${owner2}</span></div>
+            <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner2 !== "Unassigned" ? owner2 : ''}</span></div>
           </div>`;
       };
 
       let bracketHTML = { r32:"", r16:"", qf:"", sf:"", fn:"" };
 
-      if(appData.fixtures) {
-        appData.fixtures.forEach(m => {
-          fGrid.innerHTML += buildMatchCard(m, false);
-          
-          let mNum = parseInt(String(m["Match #"]).replace(/\D/g, ''));
-          if(!isNaN(mNum)) {
-            if(mNum >= 73 && mNum <= 88) bracketHTML.r32 += buildMatchCard(m, true);
-            else if(mNum >= 89 && mNum <= 96) bracketHTML.r16 += buildMatchCard(m, true);
-            else if(mNum >= 97 && mNum <= 100) bracketHTML.qf += buildMatchCard(m, true);
-            else if(mNum >= 101 && mNum <= 102) bracketHTML.sf += buildMatchCard(m, true);
-            else if(mNum >= 103) bracketHTML.fn += buildMatchCard(m, true);
-          }
-        });
-      }
+      mergedFixtures.forEach(m => {
+        fGrid.innerHTML += buildMatchCard(m, false);
+        let mNum = parseInt(String(m["Match #"]).replace(/\D/g, ''));
+        if(!isNaN(mNum)) {
+          if(mNum >= 73 && mNum <= 88) bracketHTML.r32 += buildMatchCard(m, true);
+          else if(mNum >= 89 && mNum <= 96) bracketHTML.r16 += buildMatchCard(m, true);
+          else if(mNum >= 97 && mNum <= 100) bracketHTML.qf += buildMatchCard(m, true);
+          else if(mNum >= 101 && mNum <= 102) bracketHTML.sf += buildMatchCard(m, true);
+          else if(mNum >= 103) bracketHTML.fn += buildMatchCard(m, true);
+        }
+      });
 
-      if (bracketHTML.r32 === "") {
-        bGrid.innerHTML = "<p style='text-align:center; margin-top:40px; color:#888;'>Knockout bracket will populate when matches 73-104 are added.</p>";
-      } else {
-        bGrid.innerHTML = `
-          <div class="ko-round-header">Round of 32 (5 pts)</div>${bracketHTML.r32}
-          <div class="ko-round-header">Round of 16 (7 pts)</div>${bracketHTML.r16}
-          <div class="ko-round-header">Quarter-Finals (10 pts)</div>${bracketHTML.qf}
-          <div class="ko-round-header">Semi-Finals (30 pts)</div>${bracketHTML.sf}
-          <div class="ko-round-header">Finals (50 pts)</div>${bracketHTML.fn}
-        `;
-      }
+      bGrid.innerHTML = `
+        <div class="ko-round-header">Round of 32 (5 pts)</div>${bracketHTML.r32 || '<p style="text-align:center; color:#888;">Pending...</p>'}
+        <div class="ko-round-header">Round of 16 (7 pts)</div>${bracketHTML.r16 || '<p style="text-align:center; color:#888;">Pending...</p>'}
+        <div class="ko-round-header">Quarter-Finals (10 pts)</div>${bracketHTML.qf || '<p style="text-align:center; color:#888;">Pending...</p>'}
+        <div class="ko-round-header">Semi-Finals (30 pts)</div>${bracketHTML.sf || '<p style="text-align:center; color:#888;">Pending...</p>'}
+        <div class="ko-round-header">Finals (50 pts)</div>${bracketHTML.fn || '<p style="text-align:center; color:#888;">Pending...</p>'}
+      `;
 
       // Transfer History
       let logHTML = "";
@@ -645,9 +634,6 @@
     }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); });
   }
 
-  // ==========================================
-  // BOOT SEQUENCE
-  // ==========================================
   async function init() {
     const cached = localStorage.getItem('wc26_data');
     if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
