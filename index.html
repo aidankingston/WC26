@@ -13,7 +13,7 @@
     .header { background: #161b22; border-bottom: 1px solid var(--border); color: var(--text); }
     th { background: #21262d; color: #8b949e; }
     td { border-bottom: 1px solid var(--border); }
-    .day-header, .time-block, .ko-round-header { background: #21262d; color: var(--text); }
+    .day-header, .ko-round-header { background: #21262d; color: var(--text); }
     .btn-back, select, .modal-content { background: #21262d; color: var(--text); border: 1px solid var(--border); }
     .search-input, .modal-input { background: #0d1117; color: var(--text); border: 1px solid var(--border); }
   }
@@ -56,16 +56,20 @@
   .edit-icon { font-size: 0.65rem; opacity: 0.6; display: block; margin-top: 4px; cursor: pointer; }
   .pen-winner { font-size: 0.7rem; color: #28A745; font-weight: bold; display: block; margin-top: 2px;}
 
-  .ko-round-header { font-size: 1.1rem; font-weight: 700; margin: 30px 0 15px; background: var(--primary); color: white; padding: 8px 12px; border-radius: 6px; text-align: center; }
+  /* Horizontal Bracket */
+  .bracket-container { display: flex; overflow-x: auto; gap: 30px; padding: 10px 0 30px; }
+  .bracket-round { display: flex; flex-direction: column; gap: 20px; min-width: 260px; justify-content: space-around; }
+  .bracket-match { background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; }
+  .bracket-team { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-weight: 500; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+  .bracket-team:last-child { border-bottom: none; }
+  .bracket-team img { width: 20px; height: 14px; margin-right: 8px; vertical-align: middle; border-radius: 2px; }
+  .bracket-score { font-weight: 700; color: var(--primary); background: var(--bg); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem;}
+  .ko-round-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 15px; color: var(--primary); text-align: center; background: #eef2f5; padding: 8px; border-radius: 6px;}
+  .match-lbl { font-size: 0.65rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .owner-lbl { font-size: 0.65rem; color: #888; margin-left: 5px; font-weight: normal; }
 
   .swap-card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 12px; margin-bottom: 12px; text-align: center; }
-  .swap-teams { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-  .swap-side { width: 40%; font-weight: 700; font-size: 0.9rem; }
-  .swap-rank { font-size: 0.75rem; color: #888; font-weight: 400; margin-top: 4px; }
-  .swap-owner { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; }
-  .swap-icon { font-size: 1.5rem; color: var(--primary); }
   .btn-swap { background: #28A745; color: white; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-
   .btn-sweet { background: #FFD700; color: #000; border: 1px solid #d4af37; padding: 4px 6px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin: 2px; }
   .btn-sweet.minus { background: #f8f9fa; color: #555; border: 1px solid #ccc; }
 
@@ -80,12 +84,10 @@
   .btn-save { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
   .btn-cancel { background: #e9ecef; color: #495057; flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 3000; }
   .toast.show { opacity: 1; }
-  .toast.error { background: #DC3545; }
   .diag-box { background: #111; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; font-size: 0.85rem; margin-top: 10px; overflow-x: auto;}
   .log-item { background: var(--card); border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem; text-align: left; }
-  .log-date { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -96,13 +98,13 @@
 <div id="screen-home" class="screen active">
   <div class="tile-grid">
     <div class="tile" onclick="show('leaderboard')">
-      <div class="tile-info"><span class="tile-title">🏆 Leaderboard</span><span class="tile-desc">Standings & Knockout Bonuses</span></div>
+      <div class="tile-info"><span class="tile-title">🏆 Leaderboard</span><span class="tile-desc">Standings & Sweets Balances</span></div>
     </div>
     <div class="tile" onclick="show('groups')">
-      <div class="tile-info"><span class="tile-title">📊 Group Stage</span><span class="tile-desc">A-L Tables & 3rd Place Qualifiers</span></div>
+      <div class="tile-info"><span class="tile-title">📊 Group Stage</span><span class="tile-desc">A-L Tables & 3rd Place Ranks</span></div>
     </div>
     <div class="tile" onclick="show('bracket')">
-      <div class="tile-info"><span class="tile-title">🎯 Knockouts</span><span class="tile-desc">Round of 32 to the Final</span></div>
+      <div class="tile-info"><span class="tile-title">🎯 Knockouts</span><span class="tile-desc">Visual Knockout Tree</span></div>
     </div>
     <div class="tile" onclick="show('fixtures')">
       <div class="tile-info"><span class="tile-title">⚽ All Matches</span><span class="tile-desc">Log past & live scores</span></div>
@@ -117,7 +119,7 @@
   
   <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; color: #888;">
     <div id="home-sync-status" style="margin-bottom: 4px;">Data last synced: Loading...</div>
-    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: Knockout Force-Overwrite Fix</div>
+    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: Full Stack Bracket V1</div>
   </div>
 </div>
 
@@ -134,8 +136,9 @@
 </div>
 
 <div id="screen-bracket" class="screen">
-  <div class="screen-header"><h2 class="screen-title">Knockout Tree</h2><button class="btn-back" onclick="show('home')">←</button></div>
-  <div id="bracket-data"></div>
+  <div class="screen-header"><h2 class="screen-title">Visual Bracket</h2><button class="btn-back" onclick="show('home')">←</button></div>
+  <p style="font-size: 0.8rem; color: #888; margin-top:-10px;">Swipe left/right to view the tournament tree.</p>
+  <div id="bracket-data" class="bracket-container"></div>
 </div>
 
 <div id="screen-teams" class="screen">
@@ -154,7 +157,7 @@
   <select id="t-person1" onchange="calcSwaps()"><option value="">Member 1...</option><option value="Zelda">Zelda</option><option value="Colman">Colman</option><option value="Connie">Connie</option><option value="Jemma">Jemma</option><option value="Aidan">Aidan</option></select>
   <select id="t-person2" onchange="calcSwaps()"><option value="">Member 2...</option><option value="Zelda">Zelda</option><option value="Colman">Colman</option><option value="Connie">Connie</option><option value="Jemma">Jemma</option><option value="Aidan">Aidan</option></select>
   <div id="swap-results" style="margin-top:20px;"></div>
-  <div class="history-log"><h3 style="font-size: 1.1rem; color: var(--primary);">History</h3><div id="history-data"></div></div>
+  <div class="history-log"><h3 style="font-size: 1.1rem; color: var(--primary); margin-top:20px;">History</h3><div id="history-data"></div></div>
 </div>
 
 <div id="screen-diagnostics" class="screen">
@@ -196,24 +199,17 @@
 </div>
 
 <script>
-  // YOUR LIVE APP URL
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec"; 
   
   const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Korea Republic":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","USA":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Türkiye":"tr","Germany":"de","Curacao":"cw","Curaçao":"cw","Ivory Coast":"ci","Côte d'Ivoire":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","IR Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Cabo Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Congo DR":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
   const GROUP_CONFIG = {
-    "A": ["Mexico", "South Africa", "Korea Republic", "Czechia"],
-    "B": ["Switzerland", "Canada", "Bosnia and Herzegovina", "Qatar"],
-    "C": ["Brazil", "Morocco", "Scotland", "Haiti"],
-    "D": ["USA", "Australia", "Paraguay", "Türkiye"],
-    "E": ["Germany", "Côte d'Ivoire", "Ecuador", "Curaçao"],
-    "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
-    "G": ["Belgium", "Egypt", "IR Iran", "New Zealand"],
-    "H": ["Spain", "Cabo Verde", "Uruguay", "Saudi Arabia"],
-    "I": ["France", "Norway", "Senegal", "Iraq"],
-    "J": ["Argentina", "Austria", "Algeria", "Jordan"],
-    "K": ["Colombia", "Portugal", "Congo DR", "Uzbekistan"],
-    "L": ["England", "Ghana", "Croatia", "Panama"]
+    "A": ["Mexico", "South Africa", "Korea Republic", "Czechia"], "B": ["Switzerland", "Canada", "Bosnia and Herzegovina", "Qatar"],
+    "C": ["Brazil", "Morocco", "Scotland", "Haiti"], "D": ["USA", "Australia", "Paraguay", "Türkiye"],
+    "E": ["Germany", "Côte d'Ivoire", "Ecuador", "Curaçao"], "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
+    "G": ["Belgium", "Egypt", "IR Iran", "New Zealand"], "H": ["Spain", "Cabo Verde", "Uruguay", "Saudi Arabia"],
+    "I": ["France", "Norway", "Senegal", "Iraq"], "J": ["Argentina", "Austria", "Algeria", "Jordan"],
+    "K": ["Colombia", "Portugal", "Congo DR", "Uzbekistan"], "L": ["England", "Ghana", "Croatia", "Panama"]
   };
 
   let appData = {};
@@ -223,10 +219,9 @@
   let isKnockoutMatch = false;
   let toastTimeout;
 
-  function showToast(msg, isError = false) {
+  function showToast(msg) {
     const toast = document.getElementById('toast');
     toast.innerText = msg;
-    if(isError) toast.classList.add('error'); else toast.classList.remove('error');
     toast.classList.add('show');
     clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
@@ -246,11 +241,11 @@
     if(!t) return "Unknown";
     let lower = String(t).trim().toLowerCase();
     if (lower.includes("bosnia")) return "Bosnia and Herzegovina";
-    if (lower.includes("turkey") || lower.includes("türkiye") || lower === "turkiye") return "Türkiye";
+    if (lower.includes("türkiye") || lower === "turkiye") return "Türkiye";
     if (lower === "usa" || lower === "us" || lower.includes("united states")) return "USA";
     if (lower.includes("czech")) return "Czechia";
-    if (lower.includes("korea rep") || lower.includes("south korea") || lower.includes("korea republic")) return "Korea Republic";
-    if (lower.includes("ivory") || lower.includes("côte") || lower.includes("cote d")) return "Côte d'Ivoire";
+    if (lower.includes("korea rep") || lower.includes("korea republic")) return "Korea Republic";
+    if (lower.includes("ivory") || lower.includes("côte")) return "Côte d'Ivoire";
     if (lower.includes("congo dr") || lower.includes("dr congo")) return "Congo DR";
     if (lower === "cape verde" || lower.includes("cabo verde")) return "Cabo Verde";
     if (lower.includes("curacao") || lower.includes("curaçao")) return "Curaçao";
@@ -259,10 +254,12 @@
   }
 
   function getVisual(t) { 
-    let lowerT = String(t).toLowerCase();
-    if(lowerT.includes("winner") || lowerT.includes("tbd")) return `<div class="flag" style="background:#eee; display:inline-block; border:1px dashed #ccc; border-radius:50%; width:28px; height:28px; margin-bottom:5px;"></div>`;
     let code = countryCodes[normName(t)];
-    return code ? `<img src="https://flagcdn.com/w40/${code}.png" class="flag">` : `<div class="flag" style="background:#eee; display:inline-block; border:1px dashed #ccc; width:32px; height:22px; margin-bottom:5px;"></div>`; 
+    return code ? `<img src="https://flagcdn.com/w40/${code}.png" class="flag">` : `<div class="flag" style="background:#eee; display:inline-block; border:1px dashed #ccc; width:32px; height:22px;"></div>`; 
+  }
+  function getVisualInline(t) { 
+    let code = countryCodes[normName(t)];
+    return code ? `<img src="https://flagcdn.com/w40/${code}.png">` : `<span style="display:inline-block; width:20px; height:14px; background:#eee; border:1px dashed #ccc; margin-right:8px; vertical-align:middle;"></span>`; 
   }
 
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
@@ -270,12 +267,8 @@
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    
-    const targetScreen = document.getElementById('screen-' + id);
-    if(targetScreen) targetScreen.classList.add('active');
-    
-    const targetNav = document.getElementById('nav-' + id);
-    if(targetNav) targetNav.classList.add('active');
+    document.getElementById('screen-' + id).classList.add('active');
+    document.getElementById('nav-' + id)?.classList.add('active');
     
     if(id === 'fixtures') {
       setTimeout(() => {
@@ -283,13 +276,9 @@
         if (firstUnplayed) {
           const y = firstUnplayed.getBoundingClientRect().top + window.scrollY - 100;
           window.scrollTo({top: y, behavior: 'smooth'});
-        } else {
-          window.scrollTo(0,0);
-        }
+        } else { window.scrollTo(0,0); }
       }, 150);
-    } else {
-      window.scrollTo(0,0);
-    }
+    } else { window.scrollTo(0,0); }
   }
 
   function filterMatches() {
@@ -309,13 +298,11 @@
     activeEditMatch = matchId;
     isKnockoutMatch = parseInt(String(matchId).replace(/\D/g, '')) > 72; 
     activePenWinner = pens || "";
-    
     document.getElementById('modal-match-details').innerText = `Match #${matchId} ${isKnockoutMatch ? '(Knockout)' : ''}`;
     document.getElementById('modal-t1').innerText = t1;
     document.getElementById('modal-t2').innerText = t2;
     document.getElementById('inp-h').value = (h !== 'undefined' && h !== '') ? h : '';
     document.getElementById('inp-a').value = (a !== 'undefined' && a !== '') ? a : '';
-    
     document.getElementById('score-modal').style.display = 'flex';
     checkPens();
   }
@@ -325,14 +312,8 @@
     const h = document.getElementById('inp-h').value;
     const a = document.getElementById('inp-a').value;
     const penBox = document.getElementById('pen-selector');
-    
-    if(h !== '' && a !== '' && h === a) {
-      penBox.style.display = 'block';
-      updatePenButtons();
-    } else {
-      penBox.style.display = 'none';
-      activePenWinner = "";
-    }
+    if(h !== '' && a !== '' && h === a) { penBox.style.display = 'block'; updatePenButtons(); } 
+    else { penBox.style.display = 'none'; activePenWinner = ""; }
   }
 
   function selectPen(side) { activePenWinner = side; updatePenButtons(); }
@@ -350,7 +331,6 @@
     const a = document.getElementById('inp-a').value;
     if(h === '' || a === '') { alert("Enter both scores."); return; }
     if(isKnockoutMatch && h === a && activePenWinner === "") { alert("Please select the penalty shootout winner."); return; }
-    
     const currentMatchToSave = activeEditMatch;
     if (!currentMatchToSave) return; 
 
@@ -375,12 +355,37 @@
     jsonp(`${SCRIPT_URL}?action=awardSweet&member=${encodeURIComponent(member)}&amount=${encodeURIComponent(amount)}`);
   }
 
+  function calcSwaps() {
+    const p1 = document.getElementById('t-person1').value;
+    const p2 = document.getElementById('t-person2').value;
+    const res = document.getElementById('swap-results');
+    res.innerHTML = "";
+    if(!p1 || !p2 || p1 === p2) return;
+
+    const t1s = Object.keys(appData.owners || {}).filter(t => appData.owners[t] === p1);
+    const t2s = Object.keys(appData.owners || {}).filter(t => appData.owners[t] === p2);
+
+    let html = '';
+    t1s.forEach(t1 => {
+      t2s.forEach(t2 => {
+        html += `<div class="swap-card">
+          <div class="swap-teams">
+            <div class="swap-side"><div class="swap-owner">${p1}</div>${getVisual(t1)}<br>${t1}</div>
+            <div class="swap-icon">⇄</div>
+            <div class="swap-side"><div class="swap-owner">${p2}</div>${getVisual(t2)}<br>${t2}</div>
+          </div>
+          <button class="btn-swap" onclick="executeSwap('${t1}', '${p1}', '${t2}', '${p2}')">Execute Transfer</button>
+        </div>`;
+      });
+    });
+    res.innerHTML = html;
+  }
+
   function executeSwap(t1, p1, t2, p2) {
     if(!confirm(`Swap ${t1} for ${t2}?`)) return;
     if(!appData.transferLog) appData.transferLog = [];
     const ts = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-GB');
     appData.transferLog.push({ date: ts, p1: p1, t1: t1, p2: p2, t2: t2 });
-    
     appData.owners[normName(t1)] = p2; appData.owners[normName(t2)] = p1;
     localStorage.setItem('wc26_data', JSON.stringify(appData));
     renderApp(); calcSwaps(); 
@@ -391,54 +396,41 @@
   function renderApp() {
     try {
       if (!appData.owners) return;
-      
-      const owners = {};
-      Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim());
-      appData.owners = owners;
+      const owners = {}; Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim()); appData.owners = owners;
 
       let stats = {}; 
       let koPoints = {};  
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => koPoints[p] = 0);
 
       const groupLookup = {};
-      for (let g in GROUP_CONFIG) {
-        GROUP_CONFIG[g].forEach(t => groupLookup[normName(t)] = g);
-      }
+      for (let g in GROUP_CONFIG) { GROUP_CONFIG[g].forEach(t => groupLookup[normName(t)] = g); }
 
       let mergedFixtures = appData.fixtures ? [...appData.fixtures] : [];
       
-      // Hardcoded fixtures - adjusted from EDT to BST directly here for reliable rendering
       const hardcodedKnockouts = [
-        {"Match #": 74, "Date & Time (US EDT/UTC-4)": "2026-06-29T21:30:00+01:00", "Team 1": "Germany", "Team 2": "Paraguay"},
-        {"Match #": 75, "Date & Time (US EDT/UTC-4)": "2026-06-30T02:00:00+01:00", "Team 1": "Netherlands", "Team 2": "Morocco"},
-        {"Match #": 76, "Date & Time (US EDT/UTC-4)": "2026-06-29T18:00:00+01:00", "Team 1": "Brazil", "Team 2": "Japan"},
-        {"Match #": 77, "Date & Time (US EDT/UTC-4)": "2026-06-30T22:00:00+01:00", "Team 1": "France", "Team 2": "Sweden"},
-        {"Match #": 78, "Date & Time (US EDT/UTC-4)": "2026-06-30T18:00:00+01:00", "Team 1": "Côte d'Ivoire", "Team 2": "Norway"},
-        {"Match #": 79, "Date & Time (US EDT/UTC-4)": "2026-07-01T02:00:00+01:00", "Team 1": "Mexico", "Team 2": "Ecuador"},
-        {"Match #": 89, "Date & Time (US EDT/UTC-4)": "2026-07-04T22:00:00+01:00", "Team 1": "Winner Match 74", "Team 2": "Winner Match 77"},
-        {"Match #": 90, "Date & Time (US EDT/UTC-4)": "2026-07-04T18:00:00+01:00", "Team 1": "Canada", "Team 2": "Winner Match 75"},
-        {"Match #": 91, "Date & Time (US EDT/UTC-4)": "2026-07-05T21:00:00+01:00", "Team 1": "Winner Match 76", "Team 2": "Winner Match 78"},
-        {"Match #": 92, "Date & Time (US EDT/UTC-4)": "2026-07-06T01:00:00+01:00", "Team 1": "Winner Match 79", "Team 2": "Winner Match 80"}
+        {"Match #": 74, "Date & Time (US EDT/UTC-4)": "2026-06-29T21:30:00+01:00", "Team 1": "Germany", "Team 2": "Paraguay", "Round": "r32"},
+        {"Match #": 75, "Date & Time (US EDT/UTC-4)": "2026-06-30T02:00:00+01:00", "Team 1": "Netherlands", "Team 2": "Morocco", "Round": "r32"},
+        {"Match #": 76, "Date & Time (US EDT/UTC-4)": "2026-06-29T18:00:00+01:00", "Team 1": "Brazil", "Team 2": "Japan", "Round": "r32"},
+        {"Match #": 77, "Date & Time (US EDT/UTC-4)": "2026-06-30T22:00:00+01:00", "Team 1": "France", "Team 2": "Sweden", "Round": "r32"},
+        {"Match #": 78, "Date & Time (US EDT/UTC-4)": "2026-06-30T18:00:00+01:00", "Team 1": "Côte d'Ivoire", "Team 2": "Norway", "Round": "r32"},
+        {"Match #": 79, "Date & Time (US EDT/UTC-4)": "2026-07-01T02:00:00+01:00", "Team 1": "Mexico", "Team 2": "Ecuador", "Round": "r32"},
+        {"Match #": 89, "Date & Time (US EDT/UTC-4)": "2026-07-04T22:00:00+01:00", "Team 1": "Winner Match 74", "Team 2": "Winner Match 77", "Round": "r16"},
+        {"Match #": 90, "Date & Time (US EDT/UTC-4)": "2026-07-04T18:00:00+01:00", "Team 1": "Canada", "Team 2": "Winner Match 75", "Round": "r16"},
+        {"Match #": 91, "Date & Time (US EDT/UTC-4)": "2026-07-05T21:00:00+01:00", "Team 1": "Winner Match 76", "Team 2": "Winner Match 78", "Round": "r16"},
+        {"Match #": 92, "Date & Time (US EDT/UTC-4)": "2026-07-06T01:00:00+01:00", "Team 1": "Winner Match 79", "Team 2": "Winner Match 80", "Round": "r16"}
       ];
 
-      // THE FIX: Overwrite the placeholder rows from the Google Sheet completely
       hardcodedKnockouts.forEach(hk => {
         const existingIdx = mergedFixtures.findIndex(f => String(f["Match #"]).replace(/\D/g, '') === String(hk["Match #"]).replace(/\D/g, ''));
-        if(existingIdx !== -1) {
-          mergedFixtures[existingIdx] = hk; 
-        } else {
-          mergedFixtures.push(hk);
-        }
+        if(existingIdx !== -1) mergedFixtures[existingIdx] = hk; else mergedFixtures.push(hk);
       });
       mergedFixtures.sort((a,b) => parseInt(String(a["Match #"]).replace(/\D/g, '')) - parseInt(String(b["Match #"]).replace(/\D/g, '')));
 
       mergedFixtures.forEach(m => {
         let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-        let lowerT1 = String(t1).toLowerCase();
-        let lowerT2 = String(t2).toLowerCase();
-        
-        if(t1 && !stats[t1] && !lowerT1.includes("winner")) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t1] || "?"};
-        if(t2 && !stats[t2] && !lowerT2.includes("winner")) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t2] || "?"};
+        let lowerT1 = String(t1).toLowerCase(); let lowerT2 = String(t2).toLowerCase();
+        if(t1 && !stats[t1] && !lowerT1.includes("winner") && !lowerT1.includes("tbd")) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t1] || "?"};
+        if(t2 && !stats[t2] && !lowerT2.includes("winner") && !lowerT2.includes("tbd")) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t2] || "?"};
       });
 
       if(appData.scores) {
@@ -451,10 +443,8 @@
             
             if(mNum > 72) {
               let winner = null;
-              if (h > a) winner = t1;
-              else if (a > h) winner = t2;
-              else if (s.pens === 'H') winner = t1;
-              else if (s.pens === 'A') winner = t2;
+              if (h > a) winner = t1; else if (a > h) winner = t2;
+              else if (s.pens === 'H') winner = t1; else if (s.pens === 'A') winner = t2;
 
               if(winner && owners[winner]) {
                 let bonus = 0;
@@ -462,17 +452,15 @@
                 else if (mNum >= 89 && mNum <= 96) bonus = 7; 
                 else if (mNum >= 97 && mNum <= 100) bonus = 10; 
                 else if (mNum >= 101 && mNum <= 102) bonus = 30; 
-                else if (mNum === 104) bonus = 50;            
+                else if (mNum >= 103) bonus = 50;            
                 koPoints[owners[winner]] += bonus;
               }
-            } 
-            else if (stats[t1] && stats[t2]) {
+            } else if (stats[t1] && stats[t2]) {
               stats[t1].played++; stats[t2].played++;
               stats[t1].gf += h; stats[t2].gf += a;
               stats[t1].ga += a; stats[t2].ga += h;
               stats[t1].gd += (h - a); stats[t2].gd += (a - h);
-              if(h > a) stats[t1].pts += 3; else if(a > h) stats[t2].pts += 3;
-              else { stats[t1].pts += 1; stats[t2].pts += 1; }
+              if(h > a) stats[t1].pts += 3; else if(a > h) stats[t2].pts += 3; else { stats[t1].pts += 1; stats[t2].pts += 1; }
             }
           }
         });
@@ -481,54 +469,32 @@
       let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts: koPoints[p], bonus: koPoints[p]});
       Object.keys(stats).forEach(t => { 
         if(owners[t] && famStats[owners[t]]) { 
-          let p = owners[t]; 
-          famStats[p].p += stats[t].played; 
-          famStats[p].gd += stats[t].gd; 
-          famStats[p].pts += stats[t].pts; 
+          let p = owners[t]; famStats[p].p += stats[t].played; famStats[p].gd += stats[t].gd; famStats[p].pts += stats[t].pts; 
         } 
       });
       
       document.getElementById('leaderboard-data').innerHTML = `<table>
-        <tr>
-          <th style="text-align:left">Family</th>
-          <th>P</th>
-          <th>GD</th>
-          <th>Pts</th>
-          <th>🍬</th>
-          <th>Bal</th>
-        </tr>` +
+        <tr><th style="text-align:left">Family</th><th>P</th><th>GD</th><th>Pts</th><th>🍬</th><th>Bal</th></tr>` +
         Object.entries(famStats).sort((a,b) => b[1].pts - a[1].pts).map(([n, s]) => {
-          let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0;
-          let diff = s.pts - awarded;
+          let awarded = appData.sweets && appData.sweets[n] ? appData.sweets[n] : 0; let diff = s.pts - awarded;
           let sStat = diff > 0 ? `<span style="color:#d9534f; font-weight:bold; font-size: 0.8rem;">Owe ${diff}</span>` : `<span style="color:#5cb85c; font-weight:bold; font-size: 0.8rem;">Settled</span>`;
           return `<tr>
             <td style="text-align:left; font-weight:700;"><span class="color-indicator" style="background:var(--${n})"></span> ${n}</td>
-            <td>${s.p}</td>
-            <td>${s.gd > 0 ? '+' + s.gd : s.gd}</td>
+            <td>${s.p}</td><td>${s.gd > 0 ? '+' + s.gd : s.gd}</td>
             <td><b>${s.pts}</b> <br><span style="font-size:0.65rem; color:#888;">(+${s.bonus} KO)</span></td>
-            <td style="white-space:nowrap;">
-              <button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-</button>
-              <b>${awarded}</b>
-              <button class="btn-sweet" onclick="awardSweet('${n}', 1)">+</button>
-            </td>
-            <td>${sStat}</td>
-          </tr>`;
+            <td style="white-space:nowrap;"><button class="btn-sweet minus" onclick="awardSweet('${n}', -1)">-</button><b>${awarded}</b><button class="btn-sweet" onclick="awardSweet('${n}', 1)">+</button></td>
+            <td>${sStat}</td></tr>`;
         }).join('') + `</table>`;
 
       const groupsDiv = document.getElementById('groups-data'); groupsDiv.innerHTML = "";
-      let thirdPlaceTeams = [];
-      const groupLetters = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+      let thirdPlaceTeams = []; const groupLetters = ["A","B","C","D","E","F","G","H","I","J","K","L"];
       
       groupLetters.forEach(g => {
         let groupTeams = Object.keys(stats).filter(t => stats[t].grp === g);
         if(groupTeams.length > 0) {
           groupTeams.sort((a,b) => stats[b].pts - stats[a].pts || stats[b].gd - stats[a].gd || stats[b].gf - stats[a].gf);
           if(groupTeams[2]) thirdPlaceTeams.push({t: groupTeams[2], s: stats[groupTeams[2]]});
-
-          let tableRows = groupTeams.map(t => {
-            return `<tr><td style="text-align:left;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd>0?'+'+stats[t].gd:stats[t].gd}</td><td><b>${stats[t].pts}</b></td></tr>`;
-          }).join('');
-
+          let tableRows = groupTeams.map(t => `<tr><td style="text-align:left;">${getVisual(t)} ${t}</td><td>${stats[t].played}</td><td>${stats[t].gd>0?'+'+stats[t].gd:stats[t].gd}</td><td><b>${stats[t].pts}</b></td></tr>`).join('');
           groupsDiv.innerHTML += `<div class="table-container" style="margin-bottom: 15px;"><table style="margin:0;"><tr><th style="text-align:left; background:var(--primary); color:white;">Group ${g}</th><th style="background:var(--primary); color:white;">P</th><th style="background:var(--primary); color:white;">GD</th><th style="background:var(--primary); color:white;">Pts</th></tr>${tableRows}</table></div>`;
         }
       });
@@ -537,10 +503,7 @@
       if(thirdPlaceTeams.length > 0) {
         thirdPlaceTeams.sort((a,b) => b.s.pts - a.s.pts || b.s.gd - a.s.gd || b.s.gf - a.s.gf);
         tpDiv.innerHTML = `<table><tr><th style="text-align:left">Team</th><th>Grp</th><th>GD</th><th>Pts</th></tr>` + 
-          thirdPlaceTeams.map((item, index) => {
-            let bg = index < 8 ? 'class="qual-zone"' : '';
-            return `<tr ${bg}><td style="text-align:left;">${getVisual(item.t)} ${item.t}</td><td>${item.s.grp}</td><td>${item.s.gd>0?'+'+item.s.gd:item.s.gd}</td><td><b>${item.s.pts}</b></td></tr>`;
-          }).join('') + `</table>`;
+          thirdPlaceTeams.map((item, index) => `<tr ${index < 8 ? 'class="qual-zone"' : ''}><td style="text-align:left;">${getVisual(item.t)} ${item.t}</td><td>${item.s.grp}</td><td>${item.s.gd>0?'+'+item.s.gd:item.s.gd}</td><td><b>${item.s.pts}</b></td></tr>`).join('') + `</table>`;
       }
 
       const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
@@ -549,91 +512,105 @@
           Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
       });
 
-      const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
-      const bGrid = document.getElementById('bracket-data'); bGrid.innerHTML = "";
-      let lastDate = "";
+      const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = ""; let lastDate = "";
       
-      const buildMatchCard = (m, isBracket = false) => {
-        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
-        if(isNaN(d.getTime())) return "";
-        
-        if (!String(m["Date & Time (US EDT/UTC-4)"]).includes("+")) {
-           d.setHours(d.getHours() + 5); 
-        }
-        
-        const rawMNum = m["Match #"];
-        const mNum = parseInt(String(rawMNum).replace(/\D/g, ''));
-        
-        const hScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].hS !== "" ? appData.scores[rawMNum].hS : '';
-        const aScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].aS !== "" ? appData.scores[rawMNum].aS : '';
-        const pens = appData.scores && appData.scores[rawMNum] ? appData.scores[rawMNum].pens : '';
-        const isPlayed = hScore !== '' && aScore !== '';
-        
-        let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
-        
-        // Block "Unassigned" from appearing under "Winner of Match X"
-        let isPlaceholder1 = String(t1).toLowerCase().includes("winner");
-        let isPlaceholder2 = String(t2).toLowerCase().includes("winner");
-        
-        const owner1 = !isPlaceholder1 ? (owners[t1] || "Unassigned") : "";
-        const owner2 = !isPlaceholder2 ? (owners[t2] || "Unassigned") : "";
-
-        let penHTML = pens === 'H' ? `<span class="pen-winner">${t1} (Pens)</span>` : (pens === 'A' ? `<span class="pen-winner">${t2} (Pens)</span>` : '');
-
-        let centerBlock = isPlayed 
-          ? `<div onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '${hScore}', '${aScore}', '${pens}')" style="cursor:pointer;">
-               <div class="score-display">${hScore} - ${aScore}</div>${penHTML}<span class="edit-icon">✏️ Edit</span>
-             </div>`
-          : `<div>
-               <div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div>
-               <button class="score-btn" onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '', '', '')">Add Score</button>
-             </div>`;
-
-        let cardClass = isPlayed ? "match-card" : "match-card unplayed";
-        let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
-        let dateStr = "";
-        if(!isBracket && dateHeader !== lastDate) { dateStr = `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
-
-        return `${dateStr}<div class="${cardClass}">
-            <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner1}</span></div>
-            ${centerBlock}
-            <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner2}</span></div>
-          </div>`;
-      };
-
-      let bracketHTML = { r32:"", r16:"", qf:"", sf:"", fn:"" };
-
       mergedFixtures.forEach(m => {
-        fGrid.innerHTML += buildMatchCard(m, false);
-        let mNum = parseInt(String(m["Match #"]).replace(/\D/g, ''));
-        if(!isNaN(mNum)) {
-          if(mNum >= 73 && mNum <= 88) bracketHTML.r32 += buildMatchCard(m, true);
-          else if(mNum >= 89 && mNum <= 96) bracketHTML.r16 += buildMatchCard(m, true);
-          else if(mNum >= 97 && mNum <= 100) bracketHTML.qf += buildMatchCard(m, true);
-          else if(mNum >= 101 && mNum <= 102) bracketHTML.sf += buildMatchCard(m, true);
-          else if(mNum >= 103) bracketHTML.fn += buildMatchCard(m, true);
+        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+        if(!isNaN(d.getTime())) {
+          if (!String(m["Date & Time (US EDT/UTC-4)"]).includes("+")) d.setHours(d.getHours() + 5); 
+          const rawMNum = m["Match #"]; const mNum = parseInt(String(rawMNum).replace(/\D/g, ''));
+          const hScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].hS !== "" ? appData.scores[rawMNum].hS : '';
+          const aScore = appData.scores && appData.scores[rawMNum] && appData.scores[rawMNum].aS !== "" ? appData.scores[rawMNum].aS : '';
+          const pens = appData.scores && appData.scores[rawMNum] ? appData.scores[rawMNum].pens : '';
+          const isPlayed = hScore !== '' && aScore !== '';
+          let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+          const owner1 = !String(t1).toLowerCase().includes("winner") ? (owners[t1] || "") : "";
+          const owner2 = !String(t2).toLowerCase().includes("winner") ? (owners[t2] || "") : "";
+          let penHTML = pens === 'H' ? `<span class="pen-winner">${t1} (Pens)</span>` : (pens === 'A' ? `<span class="pen-winner">${t2} (Pens)</span>` : '');
+
+          let centerBlock = isPlayed 
+            ? `<div onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '${hScore}', '${aScore}', '${pens}')" style="cursor:pointer;"><div class="score-display">${hScore} - ${aScore}</div>${penHTML}<span class="edit-icon">✏️ Edit</span></div>`
+            : `<div><div style="font-size:0.7rem; color:#888; font-weight:700; margin-bottom:6px;">${d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} BST</div><button class="score-btn" onclick="openScoreModal('${rawMNum}', '${t1}', '${t2}', '', '', '')">Add Score</button></div>`;
+
+          let dateHeader = d.toLocaleDateString('en-GB', {weekday:'long', month:'long', day:'numeric'});
+          let dateStr = ""; if(dateHeader !== lastDate) { dateStr = `<div class="day-header">${dateHeader}</div>`; lastDate = dateHeader; }
+
+          fGrid.innerHTML += `${dateStr}<div class="match-card ${isPlayed?'':'unplayed'}">
+              <div>${getVisual(t1)}<br><span style="font-size:0.85rem; font-weight:700">${t1}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner1}</span></div>
+              ${centerBlock}
+              <div>${getVisual(t2)}<br><span style="font-size:0.85rem; font-weight:700">${t2}</span><br><span style="font-size:0.7rem; color:#888; display:block;">${owner2}</span></div>
+            </div>`;
         }
       });
 
+      // --- VISUAL BRACKET BUILDER ---
+      const bGrid = document.getElementById('bracket-data'); 
+      let bracketHTML = { r32:"", r16:"" };
+
+      const buildBracketMatch = (m) => {
+        const mNum = String(m["Match #"]).replace(/\D/g, '');
+        const hScore = appData.scores && appData.scores[mNum] && appData.scores[mNum].hS !== "" ? appData.scores[mNum].hS : '-';
+        const aScore = appData.scores && appData.scores[mNum] && appData.scores[mNum].aS !== "" ? appData.scores[mNum].aS : '-';
+        const pens = appData.scores && appData.scores[mNum] ? appData.scores[mNum].pens : '';
+        
+        let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
+        let o1 = !String(t1).toLowerCase().includes("winner") && owners[t1] ? `<span class="owner-lbl">(${owners[t1]})</span>` : '';
+        let o2 = !String(t2).toLowerCase().includes("winner") && owners[t2] ? `<span class="owner-lbl">(${owners[t2]})</span>` : '';
+        
+        let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
+        if(!isNaN(d.getTime()) && !String(m["Date & Time (US EDT/UTC-4)"]).includes("+")) d.setHours(d.getHours() + 5); 
+        let dStr = !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', {day:'numeric', month:'short'}) : '';
+
+        return `
+          <div class="bracket-match" onclick="openScoreModal('${mNum}', '${t1}', '${t2}', '${hScore!=='-'?hScore:''}', '${aScore!=='-'?aScore:''}', '${pens}')" style="cursor:pointer;">
+            <div class="match-lbl"><span>Match ${mNum}</span><span>${dStr}</span></div>
+            <div class="bracket-team">
+              <div>${getVisualInline(t1)} ${t1} ${o1}</div>
+              <div class="bracket-score">${hScore}${pens==='H'?'<span style="font-size:0.6rem; margin-left:2px; color:#28A745;">(p)</span>':''}</div>
+            </div>
+            <div class="bracket-team">
+              <div>${getVisualInline(t2)} ${t2} ${o2}</div>
+              <div class="bracket-score">${aScore}${pens==='A'?'<span style="font-size:0.6rem; margin-left:2px; color:#28A745;">(p)</span>':''}</div>
+            </div>
+          </div>
+        `;
+      };
+
+      hardcodedKnockouts.forEach(m => {
+        if(m.Round === "r32") bracketHTML.r32 += buildBracketMatch(m);
+        if(m.Round === "r16") bracketHTML.r16 += buildBracketMatch(m);
+      });
+
       bGrid.innerHTML = `
-        <div class="ko-round-header">Round of 32 (5 pts)</div>${bracketHTML.r32 || '<p style="text-align:center; color:#888;">Pending...</p>'}
-        <div class="ko-round-header">Round of 16 (7 pts)</div>${bracketHTML.r16 || '<p style="text-align:center; color:#888;">Pending...</p>'}
-        <div class="ko-round-header">Quarter-Finals (10 pts)</div>${bracketHTML.qf || '<p style="text-align:center; color:#888;">Pending...</p>'}
-        <div class="ko-round-header">Semi-Finals (30 pts)</div>${bracketHTML.sf || '<p style="text-align:center; color:#888;">Pending...</p>'}
-        <div class="ko-round-header">Finals (50 pts)</div>${bracketHTML.fn || '<p style="text-align:center; color:#888;">Pending...</p>'}
+        <div class="bracket-round">
+          <div class="ko-round-title">Round of 32<br><span style="font-size:0.75rem; font-weight:normal;">(5 pts)</span></div>
+          ${bracketHTML.r32}
+        </div>
+        <div class="bracket-round" style="padding-top: 40px;">
+          <div class="ko-round-title">Round of 16<br><span style="font-size:0.75rem; font-weight:normal;">(7 pts)</span></div>
+          ${bracketHTML.r16}
+        </div>
+        <div class="bracket-round" style="padding-top: 80px;">
+          <div class="ko-round-title">Quarter-Finals<br><span style="font-size:0.75rem; font-weight:normal;">(10 pts)</span></div>
+          <div class="bracket-match"><div class="match-lbl">Match 97</div><div class="bracket-team">TBD</div><div class="bracket-team">TBD</div></div>
+          <div class="bracket-match"><div class="match-lbl">Match 98</div><div class="bracket-team">TBD</div><div class="bracket-team">TBD</div></div>
+        </div>
+        <div class="bracket-round" style="padding-top: 120px;">
+          <div class="ko-round-title">Semi-Finals<br><span style="font-size:0.75rem; font-weight:normal;">(30 pts)</span></div>
+          <div class="bracket-match"><div class="match-lbl">Match 101</div><div class="bracket-team">TBD</div><div class="bracket-team">TBD</div></div>
+        </div>
+        <div class="bracket-round" style="padding-top: 160px;">
+          <div class="ko-round-title">Final<br><span style="font-size:0.75rem; font-weight:normal;">(50 pts)</span></div>
+          <div class="bracket-match" style="border-color:var(--Jemma);"><div class="match-lbl">Match 104</div><div class="bracket-team">TBD</div><div class="bracket-team">TBD</div></div>
+        </div>
       `;
 
       let logHTML = "";
       if (appData.transferLog && appData.transferLog.length > 0) {
-        logHTML = appData.transferLog.slice().reverse().map(l => `
-          <div class="log-item">
-            <div class="log-date">${l.date}</div>
-            <b>${l.p1}</b> traded <b>${l.t1}</b> to <b>${l.p2}</b> for <b>${l.t2}</b>
-          </div>
-        `).join('');
+        logHTML = appData.transferLog.slice().reverse().map(l => `<div class="log-item"><div class="log-date">${l.date}</div><b>${l.p1}</b> traded <b>${l.t1}</b> to <b>${l.p2}</b> for <b>${l.t2}</b></div>`).join('');
       }
-      document.getElementById('history-data').innerHTML = logHTML || "<p>No transfers yet.</p>";
-
+      document.getElementById('history-data').innerHTML = logHTML || "<p style='font-size:0.85rem; color:#888;'>No transfers yet.</p>";
+      document.getElementById('home-sync-status').innerHTML = `Data last synced: <b>${new Date().toLocaleTimeString()}</b>`;
     } catch(err) {
       console.error(err);
       updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}`);
@@ -641,13 +618,13 @@
   }
 
   function forceHardRefresh() {
-    updateDiagnostics("> Fetching live data...");
+    updateDiagnostics("> Fetching live data..."); showToast("Syncing...");
     jsonp(SCRIPT_URL + "?action=getAll").then(data => {
       if(data && data.owners) {
         appData = data; localStorage.setItem('wc26_data', JSON.stringify(appData));
-        updateDiagnostics(appData); renderApp(); showToast("Sync Complete!"); show('home');
+        updateDiagnostics(appData); renderApp(); showToast("Sync Complete!");
       }
-    }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); });
+    }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); showToast("Sync Failed"); });
   }
 
   async function init() {
