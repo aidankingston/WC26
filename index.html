@@ -8,6 +8,16 @@
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
   :root { --primary: #002366; --bg: #f4f6f9; --card: #ffffff; --text: #111424; --border: #eef2f5; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
   
+  @media (prefers-color-scheme: dark) {
+    :root { --primary: #58a6ff; --bg: #0d1117; --card: #161b22; --text: #c9d1d9; --border: #30363d; }
+    .header { background: #161b22; border-bottom: 1px solid var(--border); color: var(--text); }
+    th { background: #21262d; color: #8b949e; }
+    td { border-bottom: 1px solid var(--border); }
+    .day-header, .time-block, .ko-round-header { background: #21262d; color: var(--text); }
+    .btn-back, select, .modal-content { background: #21262d; color: var(--text); border: 1px solid var(--border); }
+    .search-input, .modal-input { background: #0d1117; color: var(--text); border: 1px solid var(--border); }
+  }
+
   * { box-sizing: border-box; }
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
@@ -107,7 +117,7 @@
   
   <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; color: #888;">
     <div id="home-sync-status" style="margin-bottom: 4px;">Data last synced: Loading...</div>
-    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: 29 Jun - Full Knockouts</div>
+    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: 29 Jun - Full Live Link</div>
   </div>
 </div>
 
@@ -186,7 +196,8 @@
 </div>
 
 <script>
-  const SCRIPT_URL = "PASTE_YOUR_SCRIPT_URL_HERE"; 
+  // YOUR LIVE APP URL
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec"; 
   
   const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Korea Republic":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","USA":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Türkiye":"tr","Germany":"de","Curacao":"cw","Curaçao":"cw","Ivory Coast":"ci","Côte d'Ivoire":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","IR Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Cabo Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Congo DR":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
@@ -393,7 +404,6 @@
         GROUP_CONFIG[g].forEach(t => groupLookup[normName(t)] = g);
       }
 
-      // 1. Base fixtures merging logic to handle hardcoded user inputs alongside sheet data
       let mergedFixtures = appData.fixtures ? [...appData.fixtures] : [];
       const hardcodedKnockouts = [
         {"Match #": 74, "Date & Time (US EDT/UTC-4)": "2026-06-29T21:30:00+01:00", "Team 1": "Germany", "Team 2": "Paraguay"},
@@ -414,14 +424,12 @@
       });
       mergedFixtures.sort((a,b) => parseInt(String(a["Match #"]).replace(/\D/g, '')) - parseInt(String(b["Match #"]).replace(/\D/g, '')));
 
-      // Build group stats logic
       mergedFixtures.forEach(m => {
         let t1 = normName(m["Team 1"]), t2 = normName(m["Team 2"]);
         if(t1 && !stats[t1] && !t1.includes("Winner")) stats[t1] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t1] || "?"};
         if(t2 && !stats[t2] && !t2.includes("Winner")) stats[t2] = {played:0, gf:0, ga:0, gd:0, pts:0, grp: groupLookup[t2] || "?"};
       });
 
-      // Calculate Scores
       if(appData.scores) {
         Object.entries(appData.scores).forEach(([id, s]) => {
           let m = mergedFixtures.find(x => String(x["Match #"]).replace(/\D/g, '') === String(id));
@@ -430,7 +438,6 @@
             let mNum = parseInt(String(id).replace(/\D/g, ''));
             const h = parseInt(s.hS), a = parseInt(s.aS);
             
-            // Scaled Knockout Logic
             if(mNum > 72) {
               let winner = null;
               if (h > a) winner = t1;
@@ -448,7 +455,6 @@
                 koPoints[owners[winner]] += bonus;
               }
             } 
-            // Group Logic (Match 1-72)
             else if (stats[t1] && stats[t2]) {
               stats[t1].played++; stats[t2].played++;
               stats[t1].gf += h; stats[t2].gf += a;
@@ -461,7 +467,6 @@
         });
       }
 
-      // Leaderboard Render
       let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts: koPoints[p], bonus: koPoints[p]});
       Object.keys(stats).forEach(t => { 
         if(owners[t] && famStats[owners[t]]) { 
@@ -499,7 +504,6 @@
           </tr>`;
         }).join('') + `</table>`;
 
-      // Groups Render
       const groupsDiv = document.getElementById('groups-data'); groupsDiv.innerHTML = "";
       let thirdPlaceTeams = [];
       const groupLetters = ["A","B","C","D","E","F","G","H","I","J","K","L"];
@@ -518,7 +522,6 @@
         }
       });
 
-      // 3rd Place Render
       const tpDiv = document.getElementById('third-place-data');
       if(thirdPlaceTeams.length > 0) {
         thirdPlaceTeams.sort((a,b) => b.s.pts - a.s.pts || b.s.gd - a.s.gd || b.s.gf - a.s.gf);
@@ -529,14 +532,12 @@
           }).join('') + `</table>`;
       }
 
-      // My Teams Render
       const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
         tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
           Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
       });
 
-      // Fixtures & Bracket Render
       const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
       const bGrid = document.getElementById('bracket-data'); bGrid.innerHTML = "";
       let lastDate = "";
@@ -544,7 +545,7 @@
       const buildMatchCard = (m, isBracket = false) => {
         let d = new Date(m["Date & Time (US EDT/UTC-4)"]);
         if(isNaN(d.getTime())) return "";
-        // Only adjust if the string is exactly the base sheet format, otherwise leave alone as ISO covers it
+        
         if (!String(m["Date & Time (US EDT/UTC-4)"]).includes("+")) {
            d.setHours(d.getHours() + 5); 
         }
@@ -606,7 +607,6 @@
         <div class="ko-round-header">Finals (50 pts)</div>${bracketHTML.fn || '<p style="text-align:center; color:#888;">Pending...</p>'}
       `;
 
-      // Transfer History
       let logHTML = "";
       if (appData.transferLog && appData.transferLog.length > 0) {
         logHTML = appData.transferLog.slice().reverse().map(l => `
