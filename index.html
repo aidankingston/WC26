@@ -22,11 +22,7 @@
   body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
   
   .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; user-select: none; position: sticky; top:0; z-index: 2000;}
-  
-  /* Screen Routing */
-  .screen { display: none; padding: 16px; } 
-  .screen.active { display: block; }
-  
+  .screen { display: none; padding: 16px; } .screen.active { display: block; }
   .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .screen-title { font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--primary); }
   .btn-back { background: var(--border); border: none; color: var(--primary); padding: 8px 14px; border-radius: 8px; font-weight: 500; cursor: pointer; }
@@ -53,7 +49,6 @@
   .day-header { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; background: var(--border); padding: 6px 12px; border-radius: 6px; }
   
   .match-card { background: var(--card); padding: 16px 12px; border-radius: 12px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; border: 1px solid var(--border); text-align: center; gap: 10px; }
-  .team-img { width: 38px; height: 38px; object-fit: contain; }
   .flag { width: 32px; height: 22px; object-fit: cover; border-radius: 4px; margin-bottom: 5px;}
   
   .score-btn { background: #e9ecef; color: var(--primary); padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; width: 100%; cursor: pointer; }
@@ -89,6 +84,8 @@
   .toast.show { opacity: 1; }
   .toast.error { background: #DC3545; }
   .diag-box { background: #111; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; font-size: 0.85rem; margin-top: 10px; overflow-x: auto;}
+  .log-item { background: var(--card); border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem; text-align: left; }
+  .log-date { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -96,7 +93,6 @@
 <div class="header" onclick="triggerDevMode()">WORLD Cup 2026™</div>
 <div id="toast" class="toast">Saving to Google...</div>
 
-<!-- Screens Setup -->
 <div id="screen-home" class="screen active">
   <div class="tile-grid">
     <div class="tile" onclick="show('leaderboard')">
@@ -121,7 +117,7 @@
   
   <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; color: #888;">
     <div id="home-sync-status" style="margin-bottom: 4px;">Data last synced: Loading...</div>
-    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: 28 Jun (v2)</div>
+    <div style="font-size: 0.75rem; color: #bbb; font-weight: bold;">Code Version: Heavy Knockouts</div>
   </div>
 </div>
 
@@ -168,7 +164,6 @@
   <div id="diag-console" class="diag-box">Waiting for data...</div>
 </div>
 
-<!-- Bottom Navigation Bar -->
 <div class="nav-bar">
   <div class="nav-btn active" id="nav-home" onclick="show('home')"><span class="nav-icon">🏠</span><span>Home</span></div>
   <div class="nav-btn" id="nav-leaderboard" onclick="show('leaderboard')"><span class="nav-icon">🏆</span><span>Board</span></div>
@@ -178,7 +173,6 @@
   <div class="nav-btn" id="nav-transfers" onclick="show('transfers')"><span class="nav-icon">🔄</span><span>Swap</span></div>
 </div>
 
-<!-- Score Modal -->
 <div id="score-modal" class="modal">
   <div class="modal-content">
     <div style="font-size:1.1rem; font-weight:700; margin-bottom:5px; color:var(--primary);">Log Score</div>
@@ -203,18 +197,26 @@
 </div>
 
 <script>
-  // --- CONFIGURATION ---
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws7RthlNJK9pLYtKquf7XDzL_vzI25kPmg8BuqJmQENyRHLZUaY8FMKCNJoaJxsRB0/exec";
-  const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Germany":"de","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
+  // ==========================================
+  // CONFIGURATION
+  // ==========================================
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec"; // <-- PUT YOUR APPS SCRIPT URL HERE
+  
+  const countryCodes = {"Spain":"es","Mexico":"mx","South Africa":"za","South Korea":"kr","Korea Republic":"kr","Czechia":"cz","Canada":"ca","Bosnia & Herzegovina":"ba","Bosnia and Herzegovina":"ba","Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","United States":"us","USA":"us","Paraguay":"py","Australia":"au","Turkiye":"tr","Türkiye":"tr","Germany":"de","Curacao":"cw","Curaçao":"cw","Ivory Coast":"ci","Côte d'Ivoire":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir","IR Iran":"ir","New Zealand":"nz","Cape Verde":"cv","Cabo Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Norway":"no","Iraq":"iq","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt","DR Congo":"cd","Congo DR":"cd","Uzbekistan":"uz","Colombia":"co","England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa"};
 
-  // OFFICIAL 2026 GROUPS
   const GROUP_CONFIG = {
-    "A": ["Canada", "Mexico", "Saudi Arabia", "South Africa"], "B": ["England", "Ecuador", "Japan", "Haiti"],
-    "C": ["Argentina", "Morocco", "South Korea", "Tunisia"], "D": ["France", "Austria", "Panama", "Australia"],
-    "E": ["Germany", "Switzerland", "Czechia", "New Zealand"], "F": ["Brazil", "DR Congo", "Cape Verde", "Bosnia & Herzegovina"],
-    "G": ["Spain", "Ecuador", "Morocco", "Australia"], "H": ["Portugal", "Ghana", "Uruguay", "Algeria"],
-    "I": ["Belgium", "Ivory Coast", "Iran", "Uzbekistan"], "J": ["Colombia", "Panama", "Paraguay", "Jordan"],
-    "K": ["Croatia", "Austria", "Canada", "Egypt"], "L": ["Spain", "England", "Japan", "Canada"]
+    "A": ["Mexico", "South Africa", "Korea Republic", "Czechia"],
+    "B": ["Switzerland", "Canada", "Bosnia and Herzegovina", "Qatar"],
+    "C": ["Brazil", "Morocco", "Scotland", "Haiti"],
+    "D": ["USA", "Australia", "Paraguay", "Türkiye"],
+    "E": ["Germany", "Côte d'Ivoire", "Ecuador", "Curaçao"],
+    "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
+    "G": ["Belgium", "Egypt", "IR Iran", "New Zealand"],
+    "H": ["Spain", "Cabo Verde", "Uruguay", "Saudi Arabia"],
+    "I": ["France", "Norway", "Senegal", "Iraq"],
+    "J": ["Argentina", "Austria", "Algeria", "Jordan"],
+    "K": ["Colombia", "Portugal", "Congo DR", "Uzbekistan"],
+    "L": ["England", "Ghana", "Croatia", "Panama"]
   };
 
   let appData = {};
@@ -224,7 +226,9 @@
   let isKnockoutMatch = false;
   let toastTimeout;
 
-  // --- UTILITIES ---
+  // ==========================================
+  // UTILITIES
+  // ==========================================
   function showToast(msg, isError = false) {
     const toast = document.getElementById('toast');
     toast.innerText = msg;
@@ -247,37 +251,39 @@
   function normName(t) {
     if(!t) return "Unknown";
     let lower = String(t).trim().toLowerCase();
-    if (lower.includes("bosnia")) return "Bosnia & Herzegovina";
-    if (lower.includes("turkey") || lower.includes("türkiye") || lower === "turkiye") return "Turkiye";
-    if (lower === "usa" || lower === "us" || lower.includes("united states")) return "United States";
+    if (lower.includes("bosnia")) return "Bosnia and Herzegovina";
+    if (lower.includes("turkey") || lower.includes("türkiye") || lower === "turkiye") return "Türkiye";
+    if (lower === "usa" || lower === "us" || lower.includes("united states")) return "USA";
     if (lower.includes("czech")) return "Czechia";
-    if (lower.includes("korea rep") || lower.includes("south korea")) return "South Korea";
-    if (lower.includes("ivory") || lower.includes("côte") || lower.includes("cote d")) return "Ivory Coast";
-    if (lower.includes("congo dr") || lower.includes("dr congo")) return "DR Congo";
-    if (lower === "cape verde" || lower.includes("cabo verde")) return "Cape Verde";
-    if (lower.includes("curacao") || lower.includes("curaçao")) return "Curacao";
-    if (lower === "iran" || lower.includes("ir iran")) return "Iran";
+    if (lower.includes("korea rep") || lower.includes("south korea") || lower.includes("korea republic")) return "Korea Republic";
+    if (lower.includes("ivory") || lower.includes("côte") || lower.includes("cote d")) return "Côte d'Ivoire";
+    if (lower.includes("congo dr") || lower.includes("dr congo")) return "Congo DR";
+    if (lower === "cape verde" || lower.includes("cabo verde")) return "Cabo Verde";
+    if (lower.includes("curacao") || lower.includes("curaçao")) return "Curaçao";
+    if (lower === "iran" || lower.includes("ir iran")) return "IR Iran";
     return String(t).trim(); 
   }
 
-  // --- NAVIGATION ---
+  function getVisual(t) { 
+    let code = countryCodes[normName(t)] || 'xx';
+    return `<img src="https://flagcdn.com/w40/${code}.png" class="flag">`; 
+  }
+
+  // ==========================================
+  // NAVIGATION & UI
+  // ==========================================
   function triggerDevMode() { devClickCount++; if (devClickCount >= 3) { devClickCount = 0; show('diagnostics'); } }
 
   function show(id) {
-    // Hide all screens
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    // Remove active state from all nav buttons
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     
-    // Show target screen
     const targetScreen = document.getElementById('screen-' + id);
     if(targetScreen) targetScreen.classList.add('active');
     
-    // Highlight target nav button
     const targetNav = document.getElementById('nav-' + id);
     if(targetNav) targetNav.classList.add('active');
     
-    // Auto Scroll Logic for Fixtures (wait 150ms for display:block to fully render)
     if(id === 'fixtures') {
       setTimeout(() => {
         const firstUnplayed = document.querySelector('#screen-fixtures .match-card.unplayed');
@@ -298,11 +304,6 @@
     document.querySelectorAll('#screen-fixtures .match-card').forEach(c => c.style.display = c.innerText.toLowerCase().includes(q) ? 'grid' : 'none');
   }
 
-  function getVisual(t) { 
-    let code = countryCodes[normName(t)] || 'xx';
-    return `<img src="https://flagcdn.com/w40/${code}.png" class="flag">`; 
-  }
-
   function updateDiagnostics(msg) {
     const dBox = document.getElementById('diag-console');
     if (typeof msg === 'string') { dBox.innerHTML = msg; return; }
@@ -311,7 +312,9 @@
     if (hs) hs.innerHTML = `Data last synced: <b>${new Date().toLocaleTimeString()}</b>`;
   }
 
-  // --- ACTIONS ---
+  // ==========================================
+  // MODAL LOGIC
+  // ==========================================
   function openScoreModal(matchId, t1, t2, h, a, pens) {
     activeEditMatch = matchId;
     isKnockoutMatch = parseInt(String(matchId).replace(/\D/g, '')) > 72; 
@@ -372,6 +375,9 @@
       .catch(() => showToast("Network Error: Score saved locally.", true));
   }
 
+  // ==========================================
+  // DATA ACTIONS
+  // ==========================================
   function awardSweet(member, amount) {
     if(!appData.sweets) appData.sweets = {};
     appData.sweets[member] = (appData.sweets[member] || 0) + amount;
@@ -395,23 +401,21 @@
     jsonp(`${SCRIPT_URL}?action=transfer&t1=${encodeURIComponent(normName(t1))}&p1=${encodeURIComponent(p1)}&t2=${encodeURIComponent(normName(t2))}&p2=${encodeURIComponent(p2)}`);
   }
 
-  // --- RENDERING ENGINE ---
+  // ==========================================
+  // CORE RENDERING ENGINE
+  // ==========================================
   function renderApp() {
     try {
       if (!appData.owners) return;
       
-      // 1. Process Ownership
       const owners = {};
       Object.keys(appData.owners).forEach(k => owners[normName(k)] = String(appData.owners[k]).trim());
-      owners["Bosnia & Herzegovina"] = "Zelda"; 
       appData.owners = owners;
 
-      // 2. Initialize Stats & Assign Groups from GROUP_CONFIG
       let stats = {}; 
       let koPoints = {};  
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => koPoints[p] = 0);
 
-      // Map group config into a flat lookup dictionary
       const groupLookup = {};
       for (let g in GROUP_CONFIG) {
         GROUP_CONFIG[g].forEach(t => groupLookup[normName(t)] = g);
@@ -425,7 +429,6 @@
         });
       }
 
-      // 3. Process Scores
       if(appData.scores && appData.fixtures) {
         Object.entries(appData.scores).forEach(([id, s]) => {
           let m = appData.fixtures.find(x => String(x["Match #"]) === String(id));
@@ -434,7 +437,7 @@
             let mNum = parseInt(String(id).replace(/\D/g, ''));
             const h = parseInt(s.hS), a = parseInt(s.aS);
             
-            // Knockout Logic (Match 73+)
+            // Heavy Knockout Scoring Logic
             if(mNum > 72) {
               let winner = null;
               if (h > a) winner = t1;
@@ -444,15 +447,15 @@
 
               if(winner && owners[winner]) {
                 let bonus = 0;
-                if (mNum >= 73 && mNum <= 88) bonus = 3;      
-                else if (mNum >= 89 && mNum <= 96) bonus = 5; 
-                else if (mNum >= 97 && mNum <= 100) bonus = 10; 
-                else if (mNum >= 101 && mNum <= 102) bonus = 15; 
-                else if (mNum === 104) bonus = 20;            
+                if (mNum >= 73 && mNum <= 88) bonus = 5;      // Round of 32
+                else if (mNum >= 89 && mNum <= 96) bonus = 7; // Round of 16
+                else if (mNum >= 97 && mNum <= 100) bonus = 10; // Quarter-finals
+                else if (mNum >= 101 && mNum <= 102) bonus = 30; // Semi-finals
+                else if (mNum === 104) bonus = 50;            // Final
                 koPoints[owners[winner]] += bonus;
               }
             } 
-            // Group Logic (Match 1-72)
+            // Group Logic (Matches 1-72)
             else if (stats[t1] && stats[t2]) {
               stats[t1].played++; stats[t2].played++;
               stats[t1].gf += h; stats[t2].gf += a;
@@ -465,7 +468,7 @@
         });
       }
 
-      // 4. Render Leaderboard
+      // Leaderboard Render
       let famStats = {}; ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => famStats[p] = {p:0, gd:0, pts: koPoints[p], bonus: koPoints[p]});
       Object.keys(stats).forEach(t => { 
         if(owners[t] && famStats[owners[t]]) { 
@@ -503,7 +506,7 @@
           </tr>`;
         }).join('') + `</table>`;
 
-      // 5. Render Groups
+      // Groups Render
       const groupsDiv = document.getElementById('groups-data'); groupsDiv.innerHTML = "";
       let thirdPlaceTeams = [];
       const groupLetters = ["A","B","C","D","E","F","G","H","I","J","K","L"];
@@ -521,9 +524,8 @@
           groupsDiv.innerHTML += `<div class="table-container" style="margin-bottom: 15px;"><table style="margin:0;"><tr><th style="text-align:left; background:var(--primary); color:white;">Group ${g}</th><th style="background:var(--primary); color:white;">P</th><th style="background:var(--primary); color:white;">GD</th><th style="background:var(--primary); color:white;">Pts</th></tr>${tableRows}</table></div>`;
         }
       });
-      if(groupsDiv.innerHTML === "") groupsDiv.innerHTML = "<p style='text-align:center; color:#888;'>Group data not matching fixtures.</p>";
 
-      // 6. Render 3rd Place
+      // 3rd Place Render
       const tpDiv = document.getElementById('third-place-data');
       if(thirdPlaceTeams.length > 0) {
         thirdPlaceTeams.sort((a,b) => b.s.pts - a.s.pts || b.s.gd - a.s.gd || b.s.gf - a.s.gf);
@@ -534,14 +536,14 @@
           }).join('') + `</table>`;
       }
 
-      // 7. Render My Teams Tables
+      // My Teams Render
       const tTables = document.getElementById('team-tables'); tTables.innerHTML = "";
       ["Zelda", "Colman", "Connie", "Jemma", "Aidan"].forEach(p => {
         tTables.innerHTML += `<h3 style="margin: 20px 0 10px;">${p}'s Table</h3><div class="table-container"><table><tr><th style="text-align:left">Team</th><th>P</th><th>GD</th><th>Pts</th></tr>` +
           Object.keys(owners).filter(t => owners[t] === p).map(t => `<tr><td style="text-align:left; font-weight:500;">${getVisual(t)} ${t}</td><td>${stats[t]?stats[t].played:0}</td><td>${stats[t] && stats[t].gd > 0 ? '+'+stats[t].gd : (stats[t]?stats[t].gd:0)}</td><td>${stats[t]?stats[t].pts:0}</td></tr>`).join('') + `</table></div>`;
       });
 
-      // 8. Render Fixtures & Bracket
+      // Fixtures & Bracket Render
       const fGrid = document.getElementById('fixtures-data'); fGrid.innerHTML = "";
       const bGrid = document.getElementById('bracket-data'); bGrid.innerHTML = "";
       let lastDate = "";
@@ -604,70 +606,33 @@
       }
 
       if (bracketHTML.r32 === "") {
-        bGrid.innerHTML = "<p style='text-align:center; margin-top:40px; color:#888;'>Knockout bracket will populate when matches 73-104 are added to the Fixtures sheet.</p>";
+        bGrid.innerHTML = "<p style='text-align:center; margin-top:40px; color:#888;'>Knockout bracket will populate when matches 73-104 are added.</p>";
       } else {
         bGrid.innerHTML = `
-          <div class="ko-round-header">Round of 32</div>${bracketHTML.r32}
-          <div class="ko-round-header">Round of 16</div>${bracketHTML.r16}
-          <div class="ko-round-header">Quarter-Finals</div>${bracketHTML.qf}
-          <div class="ko-round-header">Semi-Finals</div>${bracketHTML.sf}
-          <div class="ko-round-header">Finals / 3rd Place</div>${bracketHTML.fn}
+          <div class="ko-round-header">Round of 32 (5 pts)</div>${bracketHTML.r32}
+          <div class="ko-round-header">Round of 16 (7 pts)</div>${bracketHTML.r16}
+          <div class="ko-round-header">Quarter-Finals (10 pts)</div>${bracketHTML.qf}
+          <div class="ko-round-header">Semi-Finals (30 pts)</div>${bracketHTML.sf}
+          <div class="ko-round-header">Finals (50 pts)</div>${bracketHTML.fn}
         `;
       }
 
-      // 9. Transfer History
-      let logHTML = `
-        <div class="log-item">
-          <div class="log-date">Pre-Tournament</div>
-          <b>Colman</b> traded <b>Canada</b> to <b>Connie</b> for <b>Norway</b>
-        </div>`;
+      // Transfer History
+      let logHTML = "";
       if (appData.transferLog && appData.transferLog.length > 0) {
         logHTML = appData.transferLog.slice().reverse().map(l => `
           <div class="log-item">
             <div class="log-date">${l.date}</div>
             <b>${l.p1}</b> traded <b>${l.t1}</b> to <b>${l.p2}</b> for <b>${l.t2}</b>
           </div>
-        `).join('') + logHTML;
+        `).join('');
       }
-      document.getElementById('history-data').innerHTML = logHTML;
+      document.getElementById('history-data').innerHTML = logHTML || "<p>No transfers yet.</p>";
 
     } catch(err) {
       console.error(err);
       updateDiagnostics(`> CRITICAL RENDER ERROR:<br>> ${err.message}`);
     }
-  }
-
-  function calcSwaps() {
-    const p1 = document.getElementById('t-person1').value;
-    const p2 = document.getElementById('t-person2').value;
-    const res = document.getElementById('swap-results');
-    
-    if(!p1 || !p2 || p1 === p2) { res.innerHTML = ""; return; }
-    if(!appData.rankings || Object.keys(appData.rankings).length === 0) { res.innerHTML = "<i>Rankings missing. Check Google Sheet.</i>"; return; }
-
-    const p1Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p1);
-    const p2Teams = Object.keys(appData.owners).filter(t => appData.owners[t] === p2);
-    let validSwaps = [];
-
-    p1Teams.forEach(t1 => {
-      p2Teams.forEach(t2 => {
-        let r1 = parseInt(appData.rankings[normName(t1)]), r2 = parseInt(appData.rankings[normName(t2)]);
-        if (!isNaN(r1) && !isNaN(r2) && Math.abs(r1 - r2) <= 10) validSwaps.push({t1, r1, t2, r2});
-      });
-    });
-
-    if (validSwaps.length === 0) { res.innerHTML = `<i>No valid swaps within 10 rank places.</i>`; return; }
-
-    res.innerHTML = validSwaps.map(s => `
-      <div class="swap-card">
-        <div class="swap-teams">
-          <div class="swap-side"><div class="swap-owner" style="color: var(--${p1});">${p1}</div>${getVisual(s.t1)}<br>${s.t1}<div class="swap-rank">Rank: ${s.r1}</div></div>
-          <div class="swap-icon">🔄</div>
-          <div class="swap-side"><div class="swap-owner" style="color: var(--${p2});">${p2}</div>${getVisual(s.t2)}<br>${s.t2}<div class="swap-rank">Rank: ${s.r2}</div></div>
-        </div>
-        <button class="btn-swap" onclick="executeSwap('${s.t1}', '${p1}', '${s.t2}', '${p2}')">Confirm Swap</button>
-      </div>
-    `).join('');
   }
 
   function forceHardRefresh() {
@@ -680,7 +645,9 @@
     }).catch(e => { updateDiagnostics(`> ERROR: Connection failed.`); });
   }
 
-  // --- BOOT UP ---
+  // ==========================================
+  // BOOT SEQUENCE
+  // ==========================================
   async function init() {
     const cached = localStorage.getItem('wc26_data');
     if (cached) { appData = JSON.parse(cached); renderApp(); updateDiagnostics(appData); }
