@@ -1,0 +1,11 @@
+:root { --primary: #002366; --bg: #f4f6f9; --card: #ffffff; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
+.header { background: var(--primary); color: white; padding: 20px; text-align: center; font-weight: 700; cursor: pointer; position: sticky; top:0; z-index: 2000; }
+.screen { display: none; padding: 16px; } .screen.active { display: block; }
+.tile { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid var(--primary); margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 1000; color: white; }
+/* Bracket Styles */
+.bracket-container { display: flex; overflow-x: auto; gap: 20px; padding: 20px 0; }
+.bracket-round { min-width: 200px; display: flex; flex-direction: column; gap: 10px; }
+.match-card { background: white; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.75rem; }
+.flag { width: 24px; height: 16px; margin-right: 8px; }
