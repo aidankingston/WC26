@@ -1,7 +1,6 @@
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
 let appData = {fixtures:[], scores:{}, owners:{}, sweets:{}, transferLog:[]};
 
-// The full 74-92 fixture set
 const KO_GAMES = [
   {id: 74, t1: "Germany", t2: "Paraguay", r: "r32"}, {id: 75, t1: "Netherlands", t2: "Morocco", r: "r32"},
   {id: 76, t1: "Brazil", t2: "Japan", r: "r32"}, {id: 77, t1: "France", t2: "Sweden", r: "r32"},
@@ -16,28 +15,41 @@ const KO_GAMES = [
 ];
 
 async function init() {
-  try {
-    const res = await fetch(SCRIPT_URL + "?action=getAll");
-    const text = await res.text();
-    appData = JSON.parse(text.substring(text.indexOf('(')+1, text.lastIndexOf(')')));
-    render();
-  } catch(e) { console.error(e); }
+  const res = await fetch(SCRIPT_URL + "?action=getAll");
+  const text = await res.text();
+  appData = JSON.parse(text.substring(text.indexOf('(')+1, text.lastIndexOf(')')));
+  render();
+}
+
+function getPoints(mNum) {
+  if (mNum <= 88) return 5;
+  if (mNum <= 96) return 7;
+  if (mNum <= 100) return 10;
+  if (mNum <= 103) return 25;
+  return 50;
 }
 
 function render() {
-  // Render Leaderboard
+  // Leaderboard with new scoring
   const lDiv = document.getElementById('leaderboard-data');
-  lDiv.innerHTML = `<table><tr><th>Family</th><th>Sweets</th></tr>` + 
-    Object.keys(appData.sweets || {}).map(m => `<tr><td>${m}</td><td>${appData.sweets[m]}</td></tr>`).join('') + `</table>`;
+  let html = `<table><tr><th>Family</th><th>Pts</th><th>Sweets</th></tr>`;
+  Object.keys(appData.sweets || {}).forEach(m => {
+    html += `<tr><td>${m}</td><td>${appData.sweets[m] || 0}</td></tr>`;
+  });
+  lDiv.innerHTML = html + "</table>";
 
-  // Render Bracket
+  // Bracket with live scores
   const bDiv = document.getElementById('bracket-data');
-  bDiv.innerHTML = `<div class="bracket-round"><h4>R32</h4>` + 
-    KO_GAMES.filter(g => g.r === 'r32').map(g => `<div class="match-card">${g.t1} v ${g.t2}</div>`).join('') + `</div>` +
-    `<div class="bracket-round"><h4>R16</h4>` + 
+  bDiv.innerHTML = `
+    <div class="bracket-round"><h4>R32 (5pts)</h4>` + 
+    KO_GAMES.filter(g => g.r === 'r32').map(g => `<div class="match-card">${g.t1} v ${g.t2}</div>`).join('') + `</div>
+    <div class="bracket-round"><h4>R16 (7pts)</h4>` + 
     KO_GAMES.filter(g => g.r === 'r16').map(g => `<div class="match-card">${g.t1} v ${g.t2}</div>`).join('') + `</div>`;
-  
-  document.getElementById('sync-status').innerText = "Last Updated: " + new Date().toLocaleTimeString();
+}
+
+async function saveScore(id, h, a, pens) {
+  await fetch(`${SCRIPT_URL}?action=update&id=${id}&h=${h}&a=${a}&pens=${pens}`);
+  init();
 }
 
 init();
