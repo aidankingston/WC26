@@ -12,5 +12,14 @@
     </div>
     <div id="screen-bracket" class="screen"><div id="bracket-data" class="bracket-container"></div></div>
     <script src="app.js"></script>
+
+    <div id="score-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Log Score</h3>
+    <input type="number" id="inp-h" class="modal-input"> VS <input type="number" id="inp-a" class="modal-input">
+    <br><br><button onclick="saveScore()">Save</button>
+  </div>
+</div>
+    
 </body>
 </html>
