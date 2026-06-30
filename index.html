@@ -1,91 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WC26 | Family Hub</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
-  :root { --primary: #002366; --bg: #f4f6f9; --card: #ffffff; --text: #111424; --border: #eef2f5; --Zelda: #8A2BE2; --Colman: #007BFF; --Connie: #28A745; --Jemma: #FFD700; --Aidan: #DC3545; }
-  * { box-sizing: border-box; }
-  body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 90px; }
-  .header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.3rem; font-weight: 700; position: sticky; top:0; z-index: 2000; cursor: pointer; }
-  .screen { display: none; padding: 16px; } .screen.active { display: block; }
-  .tile { background: var(--card); border-left: 6px solid var(--primary); padding: 20px; border-radius: 14px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.03); cursor: pointer; }
-  .nav-bar { position: fixed; bottom: 0; width: 100%; height: 65px; background: var(--primary); display: flex; justify-content: space-around; align-items: center; z-index: 1000; color: white; }
-  .bracket-container { display: flex; overflow-x: auto; gap: 20px; padding: 20px 0; }
-  .bracket-round { min-width: 250px; display: flex; flex-direction: column; gap: 15px; }
-  .bracket-match { background: white; padding: 12px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-  .match-team { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; }
-  .flag { width: 24px; height: 16px; object-fit: cover; border-radius: 2px; margin-right: 8px; }
-  .owner-tag { font-size: 0.65rem; color: #888; margin-left: 5px; }
-  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 3000; }
-  .modal-content { background: white; padding: 24px; border-radius: 16px; width: 90%; max-width: 320px; text-align: center; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WC26 Hub</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="header" onclick="show('home')">WORLD Cup 2026™</div>
-
-<div id="screen-home" class="screen active">
-  <div class="tile" onclick="show('leaderboard')">🏆 Leaderboard</div>
-  <div class="tile" onclick="show('bracket')">🎯 Visual Knockouts</div>
-  <div class="tile" onclick="show('fixtures')">⚽ Match Log</div>
-</div>
-
-<div id="screen-leaderboard" class="screen"><div id="leaderboard-data"></div></div>
-<div id="screen-bracket" class="screen"><div id="bracket-data" class="bracket-container"></div></div>
-<div id="screen-fixtures" class="screen"><div id="fixtures-data"></div></div>
-
-<nav class="nav-bar">
-  <div onclick="show('home')">🏠</div>
-  <div onclick="show('leaderboard')">🏆</div>
-  <div onclick="show('bracket')">🎯</div>
-  <div onclick="show('fixtures')">⚽</div>
-</nav>
-
-<script>
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
-  const countryCodes = {"Germany":"de","Paraguay":"py","Netherlands":"nl","Morocco":"ma","Brazil":"br","Japan":"jp","France":"fr","Sweden":"se","Côte d'Ivoire":"ci","Norway":"no","Mexico":"mx","Ecuador":"ec","England":"gb-eng","Congo DR":"cd","USA":"us","Bosnia and Herzegovina":"ba","Belgium":"be","Senegal":"sn","Portugal":"pt","Croatia":"hr","Spain":"es","Austria":"at","Switzerland":"ch","Algeria":"dz","Argentina":"ar","Cabo Verde":"cv","Colombia":"co","Ghana":"gh","Australia":"au","Egypt":"eg"};
-  
-  const KO_GAMES = [
-    {id: 74, t1: "Germany", t2: "Paraguay", r: "r32"}, {id: 75, t1: "Netherlands", t2: "Morocco", r: "r32"},
-    {id: 76, t1: "Brazil", t2: "Japan", r: "r32"}, {id: 77, t1: "France", t2: "Sweden", r: "r32"},
-    {id: 78, t1: "Côte d'Ivoire", t2: "Norway", r: "r32"}, {id: 79, t1: "Mexico", t2: "Ecuador", r: "r32"},
-    {id: 80, t1: "England", t2: "Congo DR", r: "r32"}, {id: 81, t1: "USA", t2: "Bosnia and Herzegovina", r: "r32"},
-    {id: 82, t1: "Belgium", t2: "Senegal", r: "r32"}, {id: 83, t1: "Portugal", t2: "Croatia", r: "r32"},
-    {id: 84, t1: "Spain", t2: "Austria", r: "r32"}, {id: 85, t1: "Switzerland", t2: "Algeria", r: "r32"},
-    {id: 86, t1: "Argentina", t2: "Cabo Verde", r: "r32"}, {id: 87, t1: "Colombia", t2: "Ghana", r: "r32"},
-    {id: 88, t1: "Australia", t2: "Egypt", r: "r32"}, {id: 89, t1: "Winner 74", t2: "Winner 77", r: "r16"},
-    {id: 90, t1: "Canada", t2: "Winner 75", r: "r16"}, {id: 91, t1: "Winner 76", t2: "Winner 78", r: "r16"},
-    {id: 92, t1: "Winner 79", t2: "Winner 80", r: "r16"}
-  ];
-
-  function show(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-'+id).classList.add('active');
-  }
-
-  function getFlag(t) {
-    return countryCodes[t] ? `<img src="https://flagcdn.com/w40/${countryCodes[t]}.png" class="flag">` : '';
-  }
-
-  async function init() {
-    try {
-      const res = await fetch(SCRIPT_URL + "?action=getAll");
-      const text = await res.text();
-      const data = JSON.parse(text.substring(text.indexOf('(')+1, text.lastIndexOf(')')));
-      render(data);
-    } catch(e) { console.error("Init Error", e); }
-  }
-
-  function render(data) {
-    const bDiv = document.getElementById('bracket-data');
-    bDiv.innerHTML = `<div class="bracket-round"><h4>Round of 32</h4>` + 
-      KO_GAMES.filter(g => g.r === 'r32').map(g => `<div class="bracket-match"><div class="match-team">${getFlag(g.t1)}${g.t1}</div><div class="match-team">${getFlag(g.t2)}${g.t2}</div></div>`).join('') + `</div>` +
-      `<div class="bracket-round"><h4>Round of 16</h4>` + 
-      KO_GAMES.filter(g => g.r === 'r16').map(g => `<div class="bracket-match"><div class="match-team">${getFlag(g.t1)}${g.t1}</div><div class="match-team">${getFlag(g.t2)}${g.t2}</div></div>`).join('') + `</div>`;
-  }
-  init();
-</script>
+    <div class="header" onclick="show('diagnostics')">WORLD Cup 2026™</div>
+    <div id="screen-home" class="screen active">...</div>
+    <script src="app.js"></script>
 </body>
 </html>
