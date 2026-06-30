@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WC26 Hub</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="header" onclick="show('diagnostics')">WORLD Cup 2026™</div>
-    <div id="screen-home" class="screen active">...</div>
+    <div class="header" onclick="show('home')">WORLD Cup 2026™</div>
+    <div id="screen-home" class="screen active">
+        <div class="tile" onclick="show('bracket')">🎯 Knockouts</div>
+    </div>
+    <div id="screen-bracket" class="screen"><div id="bracket-data" class="bracket-container"></div></div>
     <script src="app.js"></script>
 </body>
 </html>
