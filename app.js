@@ -2,16 +2,16 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3
 
 // Default state structures
 let appData = {
-    scores: [],     // Array of row objects from Scores.csv
-    fixtures: [],   // Array of row objects from Fixtures.csv
-    config: [],     // Array of row objects from Config.csv (Team to Owner map)
-    sweets: [],     // Array of row objects from Sweets.csv
-    transfers: []   // Array of row objects from TransferLog.csv
+    scores: [],     
+    fixtures: [],   
+    config: [],     
+    sweets: [],     
+    transfers: []   
 };
 
 // Derived state
-let teamStats = {};      // Aggregated points, GD, GF, GA for each team
-let familyStats = {};    // Total points and sweets for each family member
+let teamStats = {};      
+let familyStats = {};    
 let eliminatedTeams = new Set();
 
 // Fixed Knockout Paths (Match 73 to 104)
@@ -40,18 +40,42 @@ function show(id) {
     document.getElementById('screen-'+id).classList.add('active');
 }
 
-// 1. Fetch & Initialize
+// 1. Fetch & Initialize (UPDATED with robust parsing)
 async function init() {
     try {
+        document.getElementById('sync-status').innerText = "Fetching data from Google...";
         const res = await fetch(SCRIPT_URL + "?action=getAll");
         const raw = await res.text();
-        // Assuming Google Apps Script returns { scores: [...], config: [...], ... }
-        appData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')')));
+
+        // 1. Robust Parsing: Try standard JSON first, fallback to JSONP if needed
+        let parsedData;
+        try {
+            parsedData = JSON.parse(raw);
+        } catch(err) {
+            parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')')));
+        }
+
+        // 2. Case-Insensitive Mapping: Catch Capitalized Sheet Names
+        appData.scores = parsedData.scores || parsedData.Scores || [];
+        appData.fixtures = parsedData.fixtures || parsedData.Fixtures || [];
+        appData.config = parsedData.config || parsedData.Config || [];
+        appData.sweets = parsedData.sweets || parsedData.Sweets || [];
+        appData.transfers = parsedData.transfers || parsedData.TransferLog || parsedData.Transfers || [];
+
+        // 3. Diagnostic Output
+        const dataKeys = Object.keys(parsedData).join(", ");
+        console.log("Raw Google Response:", parsedData);
+        
+        if (appData.config.length === 0) {
+            document.getElementById('sync-status').innerHTML = `<span style="color:red;">Data received, but 'Config' is empty. Found tabs: ${dataKeys}</span>`;
+            return; // Stop rendering to prevent crash
+        }
+
         processDataEngine();
         render();
     } catch(e) {
-        document.getElementById('sync-status').innerText = "Sync Failed. Check SCRIPT_URL.";
-        console.error(e);
+        document.getElementById('sync-status').innerHTML = `<span style="color:red;">Sync Failed. Check Browser Console (F12). Error: ${e.message}</span>`;
+        console.error("Init Error:", e);
     }
 }
 
@@ -168,8 +192,6 @@ function renderLeaderboard() {
 
 function renderGroups() {
     const div = document.getElementById('groups-data');
-    // Group teams by their Group letter (assuming Fixtures or Config has it. We'll group by Config if it exists)
-    // If not explicitly provided, we'll just list all teams sorted by points for now.
     let html = `<div class="table-container"><table>
         <tr><th>Team</th><th>Owner</th><th>Pld</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>`;
     
@@ -213,7 +235,7 @@ function renderBracket() {
         const score = appData.scores?.find(s => s.MatchID == path.id);
         if (score && path.next) {
             const hG = parseInt(score.HomeScore); const aG = parseInt(score.AwayScore);
-            const winner = hG > aG ? activeMatches[path.id].h : (aG > hG ? activeMatches[path.id].a : null); // Simplify for now
+            const winner = hG > aG ? activeMatches[path.id].h : (aG > hG ? activeMatches[path.id].a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
                 if (path.isHome) activeMatches[path.next].h = winner;
@@ -275,7 +297,7 @@ function renderTransfers() {
     <div class="transfer-card">
         <h3>Execute a Swap</h3>
         <select id="trade-team-1" class="transfer-select">${teamOptions}</select>
-        <div style="text-align:center;">🔄</div>
+        <div style="text-align:center; padding: 10px 0; font-size: 20px;">🔄</div>
         <select id="trade-team-2" class="transfer-select">${teamOptions}</select>
         <button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button>
     </div>
