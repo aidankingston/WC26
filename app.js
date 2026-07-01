@@ -1,6 +1,6 @@
 window.addEventListener('error', function(e) {
     const d = document.getElementById('debug-console');
-    if(d) d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`;
+    if(d) { d.style.display = 'block'; d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
 });
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
@@ -37,10 +37,11 @@ function show(id) {
 
 function logDebug(msg) {
     const d = document.getElementById('debug-console');
-    if (d) d.innerHTML += `> ${msg}<br>`;
+    if (d) { d.style.display = 'block'; d.innerHTML += `> ${msg}<br>`; }
     console.log("DEBUG:", msg);
 }
 
+// Resilient Data Normalizer
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
@@ -53,6 +54,36 @@ function normalizeData(data) {
         });
     }
     return [];
+}
+
+// Indestructible Property Finder (Bypasses Google Sheets formatting issues)
+function getProp(obj, aliases) {
+    if (!obj) return undefined;
+    if (Array.isArray(obj)) {
+        for (let a of aliases) { if (typeof a === 'number' && obj[a] !== undefined) return obj[a]; }
+        return undefined;
+    }
+    if (typeof obj === 'object') {
+        for (let k of Object.keys(obj)) {
+            let cleanK = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (let a of aliases) {
+                if (typeof a === 'string') {
+                    let cleanA = a.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (cleanK === cleanA) return obj[k];
+                }
+            }
+        }
+        for (let k of Object.keys(obj)) {
+            let cleanK = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (let a of aliases) {
+                if (typeof a === 'string') {
+                    let cleanA = a.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (cleanK.includes(cleanA)) return obj[k];
+                }
+            }
+        }
+    }
+    return obj._key || obj._value || undefined;
 }
 
 function getStandardName(name) {
@@ -68,7 +99,8 @@ function getStandardName(name) {
 }
 
 async function init() {
-    logDebug("App.js (v13 - INNER JOIN ACTIVE). Fetching...");
+    logDebug("App.js (v14). Fetching data...");
+    document.getElementById('sync-status').innerText = "Downloading Google Sheet...";
     
     try {
         const res = await fetch(SCRIPT_URL + "?action=getAll");
@@ -85,13 +117,15 @@ async function init() {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
 
-        logDebug(`Processing ${appData.config.length} Teams, ${appData.fixtures.length} Fixtures, ${appData.scores.length} Scores...`);
+        logDebug(`Data Sizes -> Fixtures: ${appData.fixtures.length}, Scores: ${appData.scores.length}, Configs: ${appData.config.length}`);
         
         processDataEngine();
         render();
-        logDebug("<span style='color:lime;'>RENDER COMPLETE. Matches successfully mapped!</span>");
+        logDebug("<span style='color:lime;'>RENDER COMPLETE. Matches and Maths linked!</span>");
+        setTimeout(() => { document.getElementById('debug-console').style.display = 'none'; }, 5000); // Hides debug box after success
     } catch(e) {
         logDebug(`<span style='color:red;'>ERROR: ${e.message}</span>`);
+        document.getElementById('sync-status').innerText = "Sync Failed. Check Debug Box.";
     }
 }
 
@@ -101,82 +135,70 @@ function processDataEngine() {
     eliminatedTeams = new Set();
     matchTeamsMap = {}; 
     
+    // 1. Setup Owners
     appData.config.forEach((c, i) => {
-        let teamName, ownerName;
-        if (Array.isArray(c)) {
-            if (i === 0 && String(c[0]).toLowerCase() === 'team') return; 
-            teamName = c[0]; ownerName = c[1];
-        } else {
-            teamName = c.Team || c.team || c._key;
-            ownerName = c.Owner || c.owner || c.FamilyMember || c._value || "Unassigned";
-        }
-        teamName = getStandardName(teamName);
+        if (Array.isArray(c) && i === 0) return;
+        let teamName = getStandardName(getProp(c, [0, "team", "country"]));
+        let ownerName = getProp(c, [1, "owner", "name", "familymember", "member", "person"]);
         if(teamName) {
-            teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName };
-            if (!familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
+            teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned" };
+            if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
         }
     });
 
+    // 2. Sweets Economy
     appData.sweets.forEach((s, i) => {
-        let member, taken;
-        if (Array.isArray(s)) {
-            if (i === 0) return; member = s[0]; taken = s[1];
-        } else {
-            member = s.FamilyMember || s.Member || s.Name || s._key;
-            taken = s.SweetsTaken || s.Awarded || s.Sweets || s._value;
-        }
+        if (Array.isArray(s) && i === 0) return;
+        let member = getProp(s, [0, "member", "familymember", "name", "owner", "person"]);
+        let taken = getProp(s, [1, "awarded", "sweetstaken", "sweets", "taken"]);
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
+    // 3. Build Fixture Map (INNER JOIN PREP)
     appData.fixtures.forEach((f, i) => {
-        let mId, t1, t2;
-        if (Array.isArray(f)) {
-            if (i === 0) return; mId = f[4]; t1 = f[2]; t2 = f[3];
-        } else {
-            mId = f["Match #"] || f.MatchID || f.ID || f._key;
-            t1 = f["Team 1"] || f.Team1;
-            t2 = f["Team 2"] || f.Team2;
-        }
-        mId = parseInt(mId);
+        if (Array.isArray(f) && i === 0) return;
+        let mId = parseInt(getProp(f, [4, "match", "matchid", "id", "matchno"]));
+        let t1 = getProp(f, [2, "team1", "home", "hometeam"]);
+        let t2 = getProp(f, [3, "team2", "away", "awayteam"]);
         if(mId && t1 && t2) matchTeamsMap[mId] = { h: getStandardName(t1), a: getStandardName(t2) };
     });
 
+    // 4. Score Math & Points
     appData.scores.forEach((match, i) => {
-        let hG, aG, matchId, pHome, pAway;
-        if (Array.isArray(match)) {
-            if (i === 0 && String(match[0]).toLowerCase().includes('id')) return;
-            matchId = match[0]; hG = match[1]; aG = match[2]; pHome = match[3]; pAway = match[4];
-        } else {
-            hG = match.HomeScore || match.HG;
-            aG = match.AwayScore || match.AG;
-            matchId = match.MatchID || match.ID || match._key;
-            pHome = match.PenaltiesHome || match.PenHome;
-            pAway = match.PenaltiesAway || match.PenAway;
-        }
+        if (Array.isArray(match) && i === 0) return;
+        let mId = parseInt(getProp(match, [0, "matchid", "match", "id"]));
+        let hG = getProp(match, [1, "homescore", "homegoals", "hg"]);
+        let aG = getProp(match, [2, "awayscore", "awaygoals", "ag"]);
+        let pHome = getProp(match, [3, "penaltieshome", "penhome"]);
+        let pAway = getProp(match, [4, "penaltiesaway", "penaway"]);
 
-        matchId = parseInt(matchId);
-        if (!matchTeamsMap[matchId]) return; 
+        if (!mId || hG === undefined || hG === "" || aG === undefined || aG === "") return;
         
-        let h = matchTeamsMap[matchId].h;
-        let a = matchTeamsMap[matchId].a;
-
+        let tMap = matchTeamsMap[mId];
+        if (!tMap) return; 
+        
+        let h = tMap.h;
+        let a = tMap.a;
         hG = parseInt(hG); aG = parseInt(aG);
-        if (isNaN(hG) || isNaN(aG) || !teamStats[h] || !teamStats[a]) return;
-
-        teamStats[h].pld++; teamStats[a].pld++;
-        teamStats[h].gf += hG; teamStats[a].gf += aG;
-        teamStats[h].ga += aG; teamStats[a].ga += hG;
-        teamStats[h].gd = teamStats[h].gf - teamStats[h].ga;
-        teamStats[a].gd = teamStats[a].gf - teamStats[a].ga;
-
-        if (matchId <= 72) {
-            if (hG > aG) { teamStats[h].w++; teamStats[h].pts += 3; teamStats[a].l++; }
-            else if (hG < aG) { teamStats[a].w++; teamStats[a].pts += 3; teamStats[h].l++; }
-            else { teamStats[h].d++; teamStats[a].d++; teamStats[h].pts += 1; teamStats[a].pts += 1; }
-        }
         
-        if (matchId >= 73) {
-            let ptsAwarded = matchId <= 88 ? 5 : matchId <= 96 ? 7 : matchId <= 100 ? 10 : matchId <= 103 ? 25 : 50;                     
+        if (isNaN(hG) || isNaN(aG)) return;
+
+        if(teamStats[h]) { teamStats[h].pld++; teamStats[h].gf += hG; teamStats[h].ga += aG; teamStats[h].gd = teamStats[h].gf - teamStats[h].ga; }
+        if(teamStats[a]) { teamStats[a].pld++; teamStats[a].gf += aG; teamStats[a].ga += hG; teamStats[a].gd = teamStats[a].gf - teamStats[a].ga; }
+
+        if (mId <= 72) {
+            if (hG > aG) {
+                if(teamStats[h]) { teamStats[h].w++; teamStats[h].pts += 3; }
+                if(teamStats[a]) { teamStats[a].l++; }
+            } else if (hG < aG) {
+                if(teamStats[a]) { teamStats[a].w++; teamStats[a].pts += 3; }
+                if(teamStats[h]) { teamStats[h].l++; }
+            } else {
+                if(teamStats[h]) { teamStats[h].d++; teamStats[h].pts += 1; }
+                if(teamStats[a]) { teamStats[a].d++; teamStats[a].pts += 1; }
+            }
+        } else {
+            let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 103 ? 25 : 50;                     
             let winner, loser;
             if (hG > aG) { winner = h; loser = a; }
             else if (hG < aG) { winner = a; loser = h; }
@@ -185,7 +207,7 @@ function processDataEngine() {
                 else { winner = a; loser = h; }
             }
             if(teamStats[winner]) teamStats[winner].pts += ptsAwarded;
-            eliminatedTeams.add(loser); 
+            if(loser) eliminatedTeams.add(loser); 
         }
     });
 
@@ -196,12 +218,13 @@ function processDataEngine() {
 }
 
 function render() {
-    renderLeaderboard(); renderGroups(); renderBracket(); renderTeams(); renderTransfers();
+    renderLeaderboard(); renderGroups(); renderBracket(); renderFixtures(); renderTeams(); renderTransfers();
+    document.getElementById('sync-status').innerText = "Data Live. Last Sync: " + new Date().toLocaleTimeString();
 }
 
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
-    let html = `<div class="table-container"><table><tr><th>Member</th><th>Pts Earned</th><th>Sweets Taken</th><th>Balance</th></tr>`;
+    let html = `<div class="table-container"><table><tr><th>Member</th><th>Pts Earned</th><th>Sweets</th><th>Balance</th></tr>`;
     const sorted = Object.entries(familyStats).sort((a, b) => b[1].totalPts - a[1].totalPts);
     if(sorted.length === 0) html += `<tr><td colspan="4">No Data</td></tr>`;
     sorted.forEach(([name, stats]) => {
@@ -225,6 +248,43 @@ function renderGroups() {
     div.innerHTML = html + `</table></div>`;
 }
 
+// RESTORED MATCHES VIEW
+function renderFixtures() {
+    const div = document.getElementById('fixtures-data');
+    let html = `<div class="table-container"><table><tr><th>M#</th><th>Stage</th><th>Date</th><th>Result</th></tr>`;
+    
+    if (!appData.fixtures || appData.fixtures.length === 0) {
+        html += `<tr><td colspan="4">No Matches Loaded</td></tr>`;
+    } else {
+        appData.fixtures.forEach((f, i) => {
+            if (Array.isArray(f) && i===0) return;
+            let mId = parseInt(getProp(f, [4, "match", "matchid", "id"]));
+            if(!mId) return;
+            let stage = getProp(f, [0, "stage", "round", "group"]);
+            let dt = getProp(f, [1, "date", "datetime", "time"]);
+            let t1 = getStandardName(getProp(f, [2, "team1", "home"]));
+            let t2 = getStandardName(getProp(f, [3, "team2", "away"]));
+            
+            let scoreText = "v";
+            const score = appData.scores.find((s, si) => {
+                if(Array.isArray(s) && si===0) return false;
+                return parseInt(getProp(s, [0, "matchid", "match", "id"])) === mId;
+            });
+
+            if (score) {
+                let hG = getProp(score, [1, "homescore", "hg"]);
+                let aG = getProp(score, [2, "awayscore", "ag"]);
+                if (hG !== undefined && hG !== "" && aG !== undefined && aG !== "") {
+                    scoreText = `<span style="background:var(--primary);color:white;padding:2px 6px;border-radius:4px;">${hG} - ${aG}</span>`;
+                }
+            }
+
+            html += `<tr><td style="font-size:10px;color:#888;">${mId}</td><td style="font-size:11px;">${stage||""}</td><td style="font-size:10px;">${dt||""}</td><td><strong>${t1||"TBD"}</strong> &nbsp;${scoreText}&nbsp; <strong>${t2||"TBD"}</strong></td></tr>`;
+        });
+    }
+    div.innerHTML = html + `</table></div>`;
+}
+
 function renderBracket() {
     const div = document.getElementById('bracket-data');
     const rounds = [
@@ -235,10 +295,13 @@ function renderBracket() {
     let activeMatches = { ...matchTeamsMap }; 
 
     KO_PATHS.forEach(path => {
-        const score = appData.scores.find(s => parseInt(s.MatchID || s.ID || s._key || (Array.isArray(s) ? s[0] : 0)) == path.id);
+        const score = appData.scores.find((s, i) => {
+            if(Array.isArray(s) && i===0) return false;
+            return parseInt(getProp(s, [0, "matchid", "match", "id"])) === path.id;
+        });
         if (score && path.next) {
-            const hG = parseInt(score.HomeScore || (Array.isArray(score) ? score[1] : NaN)); 
-            const aG = parseInt(score.AwayScore || (Array.isArray(score) ? score[2] : NaN));
+            const hG = parseInt(getProp(score, [1, "homescore", "hg"])); 
+            const aG = parseInt(getProp(score, [2, "awayscore", "ag"]));
             const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
@@ -253,10 +316,26 @@ function renderBracket() {
         html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
         KO_PATHS.filter(p => p.r === r.key).forEach(p => {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
-            const score = appData.scores.find(s => parseInt(s.MatchID || s.ID || s._key || (Array.isArray(s) ? s[0] : 0)) == p.id);
-            const hG = score ? (score.HomeScore || (Array.isArray(score) ? score[1] : "-")) : "-";
-            const aG = score ? (score.AwayScore || (Array.isArray(score) ? score[2] : "-")) : "-";
-            html += `<div class="match-card"><div class="match-id">${p.id}</div><div class="match-team"><span>${matchData.h}</span><span class="score-box">${hG}</span></div><div class="match-team"><span>${matchData.a}</span><span class="score-box">${aG}</span></div></div>`;
+            const score = appData.scores.find((s, i) => {
+                if(Array.isArray(s) && i===0) return false;
+                return parseInt(getProp(s, [0, "matchid", "match", "id"])) === p.id;
+            });
+            const hG = score ? (getProp(score, [1, "homescore", "hg"]) || "-") : "-";
+            const aG = score ? (getProp(score, [2, "awayscore", "ag"]) || "-") : "-";
+            
+            // Extract Match Info directly from fixtures for the header
+            const fix = appData.fixtures.find((f, i) => {
+                if(Array.isArray(f) && i===0) return false;
+                return parseInt(getProp(f, [4, "match", "matchid", "id"])) === p.id;
+            });
+            let dt = fix ? getProp(fix, [1, "date", "datetime", "time"]) : "";
+            if (dt && dt.length > 20) dt = dt.substring(0, 20) + "...";
+
+            html += `<div class="match-card">
+                <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id} ${dt ? `<br>${dt}` : ''}</div>
+                <div class="match-team"><span>${matchData.h}</span><span class="score-box">${hG}</span></div>
+                <div class="match-team"><span>${matchData.a}</span><span class="score-box">${aG}</span></div>
+            </div>`;
         });
         html += `</div>`;
     });
@@ -286,12 +365,13 @@ function renderTransfers() {
     if(!appData.transfers || appData.transfers.length === 0) {
         html += `<tr><td colspan="3">No previous transfers recorded.</td></tr>`;
     } else {
-        appData.transfers.forEach(t => { 
-            const d = t.Timestamp || t.Date || (Array.isArray(t) ? t[0] : "");
-            const p1 = t["Person 1"] || t.Member1 || (Array.isArray(t) ? t[1] : "");
-            const t1 = t["Team 1"] || t.Team1 || (Array.isArray(t) ? t[2] : "");
-            const p2 = t["Person 2"] || t.Member2 || (Array.isArray(t) ? t[3] : "");
-            const t2 = t["Team 2"] || t.Team2 || (Array.isArray(t) ? t[4] : "");
+        appData.transfers.forEach((t, i) => { 
+            if (Array.isArray(t) && i === 0) return;
+            const d = getProp(t, [0, "timestamp", "date"]);
+            const p1 = getProp(t, [1, "person1", "member1"]);
+            const t1 = getProp(t, [2, "team1"]);
+            const p2 = getProp(t, [3, "person2", "member2"]);
+            const t2 = getProp(t, [4, "team2"]);
             if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${t2}</td><td>${p2} gets ${t1}</td></tr>`; 
         });
     }
