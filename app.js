@@ -40,23 +40,36 @@ function logDebug(msg) {
     console.log("DEBUG:", msg);
 }
 
-// THE FIX: Converts Google Dictionary Objects into standard Arrays
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') {
         try { data = JSON.parse(data); } catch(e) { return []; }
     }
     if (Array.isArray(data)) return data;
-    if (typeof data === 'object') {
-        // If Google sends { "0": {...}, "1": {...} }, this turns it into [{...}, {...}]
-        return Object.values(data);
-    }
+    if (typeof data === 'object') return Object.values(data);
     return [];
 }
 
+// THE FIX: Universal Translator for Team Names
+function getStandardName(name) {
+    if (!name) return "";
+    let n = name.toString().trim();
+    const map = {
+        "usa": "United States",
+        "korea republic": "South Korea",
+        "bosnia and herzegovina": "Bosnia & Herzegovina",
+        "türkiye": "Turkiye",
+        "côte d'ivoire": "Ivory Coast",
+        "curaçao": "Curacao",
+        "cabo verde": "Cape Verde",
+        "congo dr": "DR Congo",
+        "ir iran": "Iran"
+    };
+    return map[n.toLowerCase()] || n;
+}
+
 async function init() {
-    logDebug("App.js (v10) Loaded. Starting init()...");
-    document.getElementById('sync-status').innerText = "Fetching data...";
+    logDebug("App.js (v11 - Translator Added). Fetching data...");
     
     try {
         const res = await fetch(SCRIPT_URL + "?action=getAll");
@@ -64,33 +77,22 @@ async function init() {
 
         const raw = await res.text();
         let parsedData;
-        try {
-            parsedData = JSON.parse(raw);
-        } catch(err) {
-            parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')')));
-        }
+        try { parsedData = JSON.parse(raw); } 
+        catch(err) { parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')'))); }
 
-        logDebug(`Tabs found: ${Object.keys(parsedData).join(', ')}`);
-
-        // Apply Normalizer!
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
         appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
 
-        logDebug(`Data Ready: ${appData.config.length} Configs, ${appData.scores.length} Scores, ${appData.sweets.length} Sweets.`);
-
-        if(appData.config.length === 0) {
-             logDebug("<span style='color:orange;'>WARNING: Config array is empty even after normalizer.</span>");
-        }
+        logDebug(`Data Ready: ${appData.config.length} Configs, ${appData.scores.length} Scores.`);
 
         processDataEngine();
         render();
-        logDebug("<span style='color:lime;'>RENDER COMPLETE. No errors!</span>");
+        logDebug("<span style='color:lime;'>RENDER COMPLETE. You can now hide this debug box by setting DEBUG_MODE = false in index.html (or just leaving it).</span>");
     } catch(e) {
         logDebug(`<span style='color:red;'>FETCH ERROR: ${e.message}</span>`);
-        document.getElementById('sync-status').innerHTML = "Sync Failed. See console.";
     }
 }
 
@@ -108,6 +110,8 @@ function processDataEngine() {
             teamName = c.Team || c.team || c.TEAM || c._key;
             ownerName = c.Owner || c.owner || c.FamilyMember || c.Name || c.value || "Unassigned";
         }
+
+        teamName = getStandardName(teamName);
 
         if(teamName) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName };
@@ -145,6 +149,8 @@ function processDataEngine() {
             pAway = match.PenaltiesAway || match.PenAway;
         }
 
+        h = getStandardName(h);
+        a = getStandardName(a);
         hG = parseInt(hG); aG = parseInt(aG); matchId = parseInt(matchId);
 
         if (isNaN(hG) || isNaN(aG) || !teamStats[h] || !teamStats[a]) return;
@@ -197,14 +203,13 @@ function render() {
     renderBracket();
     renderTeams();
     renderTransfers();
-    document.getElementById('sync-status').innerText = "Data Live. Last Sync: " + new Date().toLocaleTimeString();
 }
 
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
-    let html = `<div class="table-container"><table><tr><th>Family Member</th><th>Pts Earned</th><th>Sweets Eaten</th><th>Remaining Balance</th></tr>`;
+    let html = `<div class="table-container"><table><tr><th>Family Member</th><th>Pts Earned</th><th>Sweets Taken</th><th>Remaining Balance</th></tr>`;
     const sorted = Object.entries(familyStats).sort((a, b) => b[1].totalPts - a[1].totalPts);
-    if(sorted.length === 0) html += `<tr><td colspan="4">No Data Available</td></tr>`;
+    if(sorted.length === 0) html += `<tr><td colspan="4">No Data</td></tr>`;
     sorted.forEach(([name, stats]) => {
         const balance = stats.totalPts - stats.sweetsTaken;
         html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:700;">${balance}</td></tr>`;
@@ -219,7 +224,7 @@ function renderGroups() {
         if (b[1].pts !== a[1].pts) return b[1].pts - a[1].pts;
         return b[1].gd - a[1].gd;
     });
-    if(sortedTeams.length === 0) html += `<tr><td colspan="8">No Data Available</td></tr>`;
+    if(sortedTeams.length === 0) html += `<tr><td colspan="8">No Data</td></tr>`;
     sortedTeams.forEach(([name, st]) => {
         const gdClass = st.gd > 0 ? 'positive-gd' : (st.gd < 0 ? 'negative-gd' : '');
         html += `<tr><td><strong>${name}</strong></td><td>${st.owner}</td><td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td><td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
@@ -236,9 +241,9 @@ function renderBracket() {
     ];
 
     let activeMatches = {};
-    appData.fixtures.filter(f => parseInt(f.MatchID || f.ID || (Array.isArray(f) ? f[0] : 0)) >= 73).forEach(f => {
-        const id = f.MatchID || f.ID || f[0];
-        activeMatches[id] = { h: f.HomeTeam || f.Home || f[1], a: f.AwayTeam || f.Away || f[2] };
+    appData.fixtures.filter(f => parseInt(f.MatchID || f.ID || (Array.isArray(f) ? f[4] : 0)) >= 73).forEach(f => {
+        const id = f.MatchID || f.ID || f[4];
+        activeMatches[id] = { h: getStandardName(f.Team1 || f.HomeTeam || f[2]), a: getStandardName(f.Team2 || f.AwayTeam || f[3]) };
     });
 
     KO_PATHS.forEach(path => {
@@ -293,12 +298,19 @@ function renderTransfers() {
     const div = document.getElementById('history-data');
     let teamOptions = `<option value="">-- Select Team --</option>`;
     Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
-    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button></div>`;
+    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade">Confirm Transfer</button></div>`;
     html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
     if(!appData.transfers || appData.transfers.length === 0) {
-        html += `<tr><td colspan="3">No previous transfers (or tab missing from JSON)</td></tr>`;
+        html += `<tr><td colspan="3">No previous transfers recorded.</td></tr>`;
     } else {
-        appData.transfers.forEach(t => { html += `<tr><td>${t.Date}</td><td>${t.Member1} gets ${t.Team2}</td><td>${t.Member2} gets ${t.Team1}</td></tr>`; });
+        appData.transfers.forEach(t => { 
+            const d = t.Timestamp || t.Date || (Array.isArray(t) ? t[0] : "");
+            const p1 = t["Person 1"] || t.Member1 || (Array.isArray(t) ? t[1] : "");
+            const t1 = t["Team 1"] || t.Team1 || (Array.isArray(t) ? t[2] : "");
+            const p2 = t["Person 2"] || t.Member2 || (Array.isArray(t) ? t[3] : "");
+            const t2 = t["Team 2"] || t.Team2 || (Array.isArray(t) ? t[4] : "");
+            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${t2}</td><td>${p2} gets ${t1}</td></tr>`; 
+        });
     }
     div.innerHTML = html + `</table></div>`;
 }
