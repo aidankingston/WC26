@@ -8,6 +8,10 @@
 </head>
 <body>
     <div class="header" onclick="show('home')">WORLD Cup 2026™</div>
+
+    <div id="debug-console" style="display:block; background:#111; color:#0f0; padding:15px; margin:10px auto; max-width:900px; font-family:monospace; font-size:12px; border-radius:8px; overflow-x:auto; max-height: 250px; overflow-y: auto; text-align:left; line-height:1.5;">
+        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS - WAITING FOR APP.JS]</strong><br>
+    </div>
     
     <div id="screen-home" class="screen active">
         <div class="tile-grid">
@@ -17,7 +21,7 @@
             <div class="tile" onclick="show('teams')">👥 Family Squads</div>
             <div class="tile" onclick="show('transfers')">🔄 Transfers</div>
         </div>
-        <div id="sync-status" style="text-align:center; margin-top:20px; font-size:12px; color:#666;">Syncing with Google Sheets...</div>
+        <div id="sync-status" style="text-align:center; margin-top:20px; font-size:12px; color:#666;">Initializing System...</div>
     </div>
     
     <div id="screen-leaderboard" class="screen"><button class="btn-back" onclick="show('home')">← Back</button><div id="leaderboard-data"></div></div>
@@ -25,10 +29,6 @@
     <div id="screen-bracket" class="screen"><button class="btn-back" onclick="show('home')">← Back</button><div id="bracket-data" class="bracket-container"></div></div>
     <div id="screen-teams" class="screen"><button class="btn-back" onclick="show('home')">← Back</button><div id="team-tables"></div></div>
     <div id="screen-transfers" class="screen"><button class="btn-back" onclick="show('home')">← Back</button><div id="history-data"></div></div>
-
-    <div id="debug-console" style="display:none; background:#111; color:#0f0; padding:15px; margin:20px auto; max-width:800px; font-family:monospace; font-size:11px; border-radius:8px; overflow-x:auto; max-height: 250px; overflow-y: auto; text-align:left; line-height:1.4;">
-        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS]</strong><br>
-    </div>
 
     <nav class="nav-bar">
         <div class="nav-btn" onclick="show('home')">🏠<br>Home</div>
@@ -38,10 +38,6 @@
         <div class="nav-btn" onclick="show('teams')">👥<br>Squads</div>
     </nav>
 
-    <script>
-        // Set to true to see exactly what is failing. Set to false to hide the black box.
-        const DEBUG_MODE = true; 
-    </script>
-    <script src="app.js"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>
