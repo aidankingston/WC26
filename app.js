@@ -1,4 +1,3 @@
-// GLOBAL ERROR CATCHER
 window.addEventListener('error', function(e) {
     const d = document.getElementById('debug-console');
     if(d) d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`;
@@ -41,7 +40,7 @@ function logDebug(msg) {
     console.log("DEBUG:", msg);
 }
 
-// THE FIX: Data Normalizer forces any weird Google Sheet formats into clean Arrays
+// THE FIX: Converts Google Dictionary Objects into standard Arrays
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') {
@@ -49,16 +48,14 @@ function normalizeData(data) {
     }
     if (Array.isArray(data)) return data;
     if (typeof data === 'object') {
-        return Object.keys(data).map(k => {
-            if (typeof data[k] === 'object') return { ...data[k], _key: k };
-            return { _key: k, value: data[k] };
-        });
+        // If Google sends { "0": {...}, "1": {...} }, this turns it into [{...}, {...}]
+        return Object.values(data);
     }
     return [];
 }
 
 async function init() {
-    logDebug("App.js Loaded. Starting init()...");
+    logDebug("App.js (v10) Loaded. Starting init()...");
     document.getElementById('sync-status').innerText = "Fetching data...";
     
     try {
@@ -75,7 +72,7 @@ async function init() {
 
         logDebug(`Tabs found: ${Object.keys(parsedData).join(', ')}`);
 
-        // Apply Normalizer to prevent ".forEach is not a function" crashes
+        // Apply Normalizer!
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
         appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
@@ -83,6 +80,10 @@ async function init() {
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
 
         logDebug(`Data Ready: ${appData.config.length} Configs, ${appData.scores.length} Scores, ${appData.sweets.length} Sweets.`);
+
+        if(appData.config.length === 0) {
+             logDebug("<span style='color:orange;'>WARNING: Config array is empty even after normalizer.</span>");
+        }
 
         processDataEngine();
         render();
@@ -98,11 +99,10 @@ function processDataEngine() {
     familyStats = {};
     eliminatedTeams = new Set();
     
-    // Process Config / Owners (Supports Object Arrays and 2D Arrays)
     appData.config.forEach((c, i) => {
         let teamName, ownerName;
         if (Array.isArray(c)) {
-            if (i === 0 && String(c[0]).toLowerCase() === 'team') return; // Skip headers
+            if (i === 0 && String(c[0]).toLowerCase() === 'team') return;
             teamName = c[0]; ownerName = c[1];
         } else {
             teamName = c.Team || c.team || c.TEAM || c._key;
@@ -115,7 +115,6 @@ function processDataEngine() {
         }
     });
 
-    // Process Sweets
     appData.sweets.forEach((s, i) => {
         let member, taken;
         if (Array.isArray(s)) {
@@ -131,7 +130,6 @@ function processDataEngine() {
         }
     });
 
-    // Process Scores
     appData.scores.forEach((match, i) => {
         let h, a, hG, aG, matchId, pHome, pAway;
         if (Array.isArray(match)) {
@@ -305,5 +303,4 @@ function renderTransfers() {
     div.innerHTML = html + `</table></div>`;
 }
 
-// Start application
 init();
