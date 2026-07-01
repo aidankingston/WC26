@@ -1,4 +1,4 @@
-// GLOBAL ERROR CATCHER - Catches syntax errors before the app even starts
+// GLOBAL ERROR CATCHER
 window.addEventListener('error', function(e) {
     const d = document.getElementById('debug-console');
     if(d) d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message} at line ${e.lineno}</span><br>`;
@@ -46,42 +46,33 @@ async function init() {
     document.getElementById('sync-status').innerText = "Fetching data...";
     
     try {
-        logDebug(`Fetching URL: ${SCRIPT_URL}`);
         const res = await fetch(SCRIPT_URL + "?action=getAll");
-        logDebug(`HTTP Status: ${res.status}`);
-        
         if (!res.ok) throw new Error(`Network response was not ok. Status: ${res.status}`);
 
         const raw = await res.text();
-        logDebug(`Received Payload. Length: ${raw.length} bytes.`);
-        
         if (raw.trim().startsWith("<")) {
-            logDebug("<span style='color:red;'>CRITICAL: Received HTML instead of JSON. The Google Sheet Web App permissions are set incorrectly (Must be 'Anyone' can access).</span>");
-            document.getElementById('sync-status').innerHTML = "Permission Error. Check Google Sheet.";
+            logDebug("<span style='color:red;'>CRITICAL: Received HTML instead of JSON. Check Google Sheet Web App permissions.</span>");
             return;
         }
 
         let parsedData;
         try {
             parsedData = JSON.parse(raw);
-            logDebug("Parsed as standard JSON.");
         } catch(err) {
-            logDebug("Failed standard JSON. Attempting JSONP parse...");
             parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')')));
-            logDebug("Parsed as JSONP.");
         }
 
-        logDebug(`Data structure received: ${Object.keys(parsedData).join(', ')}`);
+        logDebug(`Tabs found: ${Object.keys(parsedData).join(', ')}`);
 
-        // Map data safely regardless of capitalization
-        appData.scores = parsedData.scores || parsedData.Scores || [];
-        appData.fixtures = parsedData.fixtures || parsedData.Fixtures || [];
-        appData.config = parsedData.config || parsedData.Config || [];
-        appData.sweets = parsedData.sweets || parsedData.Sweets || [];
-        appData.transfers = parsedData.transfers || parsedData.TransferLog || parsedData.Transfers || [];
+        // BULLETPROOF MAPPING
+        appData.scores = parsedData.Scores || parsedData.scores || [];
+        appData.fixtures = parsedData.Fixtures || parsedData.fixtures || [];
+        appData.config = parsedData.Config || parsedData.config || parsedData.Owners || parsedData.owners || [];
+        appData.sweets = parsedData.Sweets || parsedData.sweets || [];
+        appData.transfers = parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers || [];
 
         if(appData.config.length === 0) {
-            logDebug("<span style='color:orange;'>WARNING: Config (Teams/Owners) is empty. Stats cannot be calculated.</span>");
+            logDebug("<span style='color:orange;'>WARNING: 'Config' / 'owners' tab is empty or couldn't be parsed.</span>");
         } else {
             logDebug(`Data Ready: ${appData.config.length} Teams, ${appData.scores.length} Scores.`);
         }
@@ -101,24 +92,29 @@ function processDataEngine() {
     eliminatedTeams = new Set();
     
     appData.config?.forEach(c => {
-        if(c.Team) {
-            teamStats[c.Team] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: c.Owner || "Unassigned" };
-            if (!familyStats[c.Owner]) familyStats[c.Owner] = { totalPts: 0, sweetsTaken: 0 };
+        const teamName = c.Team || c.team || c.TEAM;
+        const ownerName = c.Owner || c.owner || c.FamilyMember || c.Name || "Unassigned";
+
+        if(teamName) {
+            teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName };
+            if (!familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
         }
     });
 
     appData.sweets?.forEach(s => {
-        if (s.FamilyMember && familyStats[s.FamilyMember]) {
-            familyStats[s.FamilyMember].sweetsTaken = parseInt(s.SweetsTaken) || 0;
+        const member = s.FamilyMember || s.Name || s.Owner;
+        const taken = s.SweetsTaken || s.Sweets || s.Taken;
+        if (member && familyStats[member]) {
+            familyStats[member].sweetsTaken = parseInt(taken) || 0;
         }
     });
 
     appData.scores?.forEach(match => {
-        const h = match.HomeTeam;
-        const a = match.AwayTeam;
-        const hG = parseInt(match.HomeScore);
-        const aG = parseInt(match.AwayScore);
-        const matchId = parseInt(match.MatchID);
+        const h = match.HomeTeam || match.Home;
+        const a = match.AwayTeam || match.Away;
+        const hG = parseInt(match.HomeScore || match.HG);
+        const aG = parseInt(match.AwayScore || match.AG);
+        const matchId = parseInt(match.MatchID || match.ID);
 
         if (isNaN(hG) || isNaN(aG) || !teamStats[h] || !teamStats[a]) return;
 
@@ -146,8 +142,8 @@ function processDataEngine() {
             if (hG > aG) { winner = h; loser = a; }
             else if (hG < aG) { winner = a; loser = h; }
             else {
-                const hP = parseInt(match.PenaltiesHome) || 0;
-                const aP = parseInt(match.PenaltiesAway) || 0;
+                const hP = parseInt(match.PenaltiesHome || match.PenHome) || 0;
+                const aP = parseInt(match.PenaltiesAway || match.PenAway) || 0;
                 if (hP > aP) { winner = h; loser = a; }
                 else { winner = a; loser = h; }
             }
@@ -177,7 +173,7 @@ function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
     let html = `<div class="table-container"><table><tr><th>Family Member</th><th>Pts Earned</th><th>Sweets Eaten</th><th>Remaining Balance</th></tr>`;
     const sorted = Object.entries(familyStats).sort((a, b) => b[1].totalPts - a[1].totalPts);
-    if(sorted.length === 0) html += `<tr><td colspan="4">No Data</td></tr>`;
+    if(sorted.length === 0) html += `<tr><td colspan="4">No Data Available</td></tr>`;
     sorted.forEach(([name, stats]) => {
         const balance = stats.totalPts - stats.sweetsTaken;
         html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:700;">${balance}</td></tr>`;
@@ -192,7 +188,7 @@ function renderGroups() {
         if (b[1].pts !== a[1].pts) return b[1].pts - a[1].pts;
         return b[1].gd - a[1].gd;
     });
-    if(sortedTeams.length === 0) html += `<tr><td colspan="8">No Data</td></tr>`;
+    if(sortedTeams.length === 0) html += `<tr><td colspan="8">No Data Available</td></tr>`;
     sortedTeams.forEach(([name, st]) => {
         const gdClass = st.gd > 0 ? 'positive-gd' : (st.gd < 0 ? 'negative-gd' : '');
         html += `<tr><td><strong>${name}</strong></td><td>${st.owner}</td><td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td><td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
@@ -209,15 +205,16 @@ function renderBracket() {
     ];
 
     let activeMatches = {};
-    appData.fixtures?.filter(f => f.MatchID >= 73).forEach(f => {
-        activeMatches[f.MatchID] = { h: f.HomeTeam, a: f.AwayTeam };
+    appData.fixtures?.filter(f => parseInt(f.MatchID || f.ID) >= 73).forEach(f => {
+        activeMatches[f.MatchID || f.ID] = { h: f.HomeTeam || f.Home, a: f.AwayTeam || f.Away };
     });
 
     KO_PATHS.forEach(path => {
-        const score = appData.scores?.find(s => s.MatchID == path.id);
+        const score = appData.scores?.find(s => parseInt(s.MatchID || s.ID) == path.id);
         if (score && path.next) {
-            const hG = parseInt(score.HomeScore); const aG = parseInt(score.AwayScore);
-            const winner = hG > aG ? activeMatches[path.id].h : (aG > hG ? activeMatches[path.id].a : null); 
+            const hG = parseInt(score.HomeScore || score.HG); 
+            const aG = parseInt(score.AwayScore || score.AG);
+            const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
                 if (path.isHome) activeMatches[path.next].h = winner;
@@ -233,8 +230,8 @@ function renderBracket() {
         if(matchesForRound.length === 0) html += `<div>No matches mapped</div>`;
         matchesForRound.forEach(p => {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
-            const score = appData.scores?.find(s => s.MatchID == p.id) || {HomeScore: "-", AwayScore: "-"};
-            html += `<div class="match-card"><div class="match-id">${p.id}</div><div class="match-team"><span>${matchData.h}</span><span class="score-box">${score.HomeScore}</span></div><div class="match-team"><span>${matchData.a}</span><span class="score-box">${score.AwayScore}</span></div></div>`;
+            const score = appData.scores?.find(s => parseInt(s.MatchID || s.ID) == p.id) || {HomeScore: "-", AwayScore: "-"};
+            html += `<div class="match-card"><div class="match-id">${p.id}</div><div class="match-team"><span>${matchData.h}</span><span class="score-box">${score.HomeScore || score.HG || "-"}</span></div><div class="match-team"><span>${matchData.a}</span><span class="score-box">${score.AwayScore || score.AG || "-"}</span></div></div>`;
         });
         html += `</div>`;
     });
@@ -262,10 +259,10 @@ function renderTransfers() {
     const div = document.getElementById('history-data');
     let teamOptions = `<option value="">-- Select Team --</option>`;
     Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
-    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade">Confirm Transfer</button></div>`;
+    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button></div>`;
     html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
     if(!appData.transfers || appData.transfers.length === 0) {
-        html += `<tr><td colspan="3">No previous transfers</td></tr>`;
+        html += `<tr><td colspan="3">No previous transfers (or tab missing from JSON)</td></tr>`;
     } else {
         appData.transfers.forEach(t => { html += `<tr><td>${t.Date}</td><td>${t.Member1} gets ${t.Team2}</td><td>${t.Member2} gets ${t.Team1}</td></tr>`; });
     }
