@@ -1,20 +1,16 @@
+// GLOBAL ERROR CATCHER - Catches syntax errors before the app even starts
+window.addEventListener('error', function(e) {
+    const d = document.getElementById('debug-console');
+    if(d) d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message} at line ${e.lineno}</span><br>`;
+});
+
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
 
-// Default state structures
-let appData = {
-    scores: [],     
-    fixtures: [],   
-    config: [],     
-    sweets: [],     
-    transfers: []   
-};
-
-// Derived state
+let appData = { scores: [], fixtures: [], config: [], sweets: [], transfers: [] };
 let teamStats = {};      
 let familyStats = {};    
 let eliminatedTeams = new Set();
 
-// Fixed Knockout Paths (Match 73 to 104)
 const KO_PATHS = [
     {id: 73, r: "R32", next: 89, isHome: true}, {id: 74, r: "R32", next: 89, isHome: false},
     {id: 75, r: "R32", next: 90, isHome: true}, {id: 76, r: "R32", next: 90, isHome: false},
@@ -34,74 +30,89 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-// UI Navigation
 function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
 }
 
-// 1. Fetch & Initialize (UPDATED with robust parsing)
-async function init() {
-    try {
-        document.getElementById('sync-status').innerText = "Fetching data from Google...";
-        const res = await fetch(SCRIPT_URL + "?action=getAll");
-        const raw = await res.text();
+function logDebug(msg) {
+    const d = document.getElementById('debug-console');
+    if (d) d.innerHTML += `> ${msg}<br>`;
+    console.log("DEBUG:", msg);
+}
 
-        // 1. Robust Parsing: Try standard JSON first, fallback to JSONP if needed
+async function init() {
+    logDebug("App.js Loaded successfully. Starting init()...");
+    document.getElementById('sync-status').innerText = "Fetching data...";
+    
+    try {
+        logDebug(`Fetching URL: ${SCRIPT_URL}`);
+        const res = await fetch(SCRIPT_URL + "?action=getAll");
+        logDebug(`HTTP Status: ${res.status}`);
+        
+        if (!res.ok) throw new Error(`Network response was not ok. Status: ${res.status}`);
+
+        const raw = await res.text();
+        logDebug(`Received Payload. Length: ${raw.length} bytes.`);
+        
+        if (raw.trim().startsWith("<")) {
+            logDebug("<span style='color:red;'>CRITICAL: Received HTML instead of JSON. The Google Sheet Web App permissions are set incorrectly (Must be 'Anyone' can access).</span>");
+            document.getElementById('sync-status').innerHTML = "Permission Error. Check Google Sheet.";
+            return;
+        }
+
         let parsedData;
         try {
             parsedData = JSON.parse(raw);
+            logDebug("Parsed as standard JSON.");
         } catch(err) {
+            logDebug("Failed standard JSON. Attempting JSONP parse...");
             parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')')));
+            logDebug("Parsed as JSONP.");
         }
 
-        // 2. Case-Insensitive Mapping: Catch Capitalized Sheet Names
+        logDebug(`Data structure received: ${Object.keys(parsedData).join(', ')}`);
+
+        // Map data safely regardless of capitalization
         appData.scores = parsedData.scores || parsedData.Scores || [];
         appData.fixtures = parsedData.fixtures || parsedData.Fixtures || [];
         appData.config = parsedData.config || parsedData.Config || [];
         appData.sweets = parsedData.sweets || parsedData.Sweets || [];
         appData.transfers = parsedData.transfers || parsedData.TransferLog || parsedData.Transfers || [];
 
-        // 3. Diagnostic Output
-        const dataKeys = Object.keys(parsedData).join(", ");
-        console.log("Raw Google Response:", parsedData);
-        
-        if (appData.config.length === 0) {
-            document.getElementById('sync-status').innerHTML = `<span style="color:red;">Data received, but 'Config' is empty. Found tabs: ${dataKeys}</span>`;
-            return; // Stop rendering to prevent crash
+        if(appData.config.length === 0) {
+            logDebug("<span style='color:orange;'>WARNING: Config (Teams/Owners) is empty. Stats cannot be calculated.</span>");
+        } else {
+            logDebug(`Data Ready: ${appData.config.length} Teams, ${appData.scores.length} Scores.`);
         }
 
         processDataEngine();
         render();
+        logDebug("<span style='color:lime;'>RENDER COMPLETE.</span>");
     } catch(e) {
-        document.getElementById('sync-status').innerHTML = `<span style="color:red;">Sync Failed. Check Browser Console (F12). Error: ${e.message}</span>`;
-        console.error("Init Error:", e);
+        logDebug(`<span style='color:red;'>FETCH ERROR: ${e.message}</span>`);
+        document.getElementById('sync-status').innerHTML = "Sync Failed. See console.";
     }
 }
 
-// 2. The Data Engine: Calculate EVERYTHING locally
 function processDataEngine() {
     teamStats = {};
     familyStats = {};
     eliminatedTeams = new Set();
     
-    // Setup Teams & Owners
-    const getOwner = (team) => {
-        const conf = appData.config?.find(c => c.Team === team);
-        return conf ? conf.Owner : "Unassigned";
-    };
-
     appData.config?.forEach(c => {
-        teamStats[c.Team] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: c.Owner };
-        if (!familyStats[c.Owner]) familyStats[c.Owner] = { totalPts: 0, sweetsTaken: 0 };
+        if(c.Team) {
+            teamStats[c.Team] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: c.Owner || "Unassigned" };
+            if (!familyStats[c.Owner]) familyStats[c.Owner] = { totalPts: 0, sweetsTaken: 0 };
+        }
     });
 
-    // Populate Sweets Taken
     appData.sweets?.forEach(s => {
-        if (familyStats[s.FamilyMember]) familyStats[s.FamilyMember].sweetsTaken = parseInt(s.SweetsTaken) || 0;
+        if (s.FamilyMember && familyStats[s.FamilyMember]) {
+            familyStats[s.FamilyMember].sweetsTaken = parseInt(s.SweetsTaken) || 0;
+        }
     });
 
-    // Process Scores
     appData.scores?.forEach(match => {
         const h = match.HomeTeam;
         const a = match.AwayTeam;
@@ -111,47 +122,40 @@ function processDataEngine() {
 
         if (isNaN(hG) || isNaN(aG) || !teamStats[h] || !teamStats[a]) return;
 
-        // Base Stats Update
         teamStats[h].pld++; teamStats[a].pld++;
         teamStats[h].gf += hG; teamStats[a].gf += aG;
         teamStats[h].ga += aG; teamStats[a].ga += hG;
         teamStats[h].gd = teamStats[h].gf - teamStats[h].ga;
         teamStats[a].gd = teamStats[a].gf - teamStats[a].ga;
 
-        // Group Stage Points (Match 1-72)
         if (matchId <= 72) {
             if (hG > aG) { teamStats[h].w++; teamStats[h].pts += 3; teamStats[a].l++; }
             else if (hG < aG) { teamStats[a].w++; teamStats[a].pts += 3; teamStats[h].l++; }
             else { teamStats[h].d++; teamStats[a].d++; teamStats[h].pts += 1; teamStats[a].pts += 1; }
         }
         
-        // Knockout Stage Points (5, 7, 10, 25, 50)
         if (matchId >= 73) {
             let ptsAwarded = 0;
-            if (matchId <= 88) ptsAwarded = 5;       // R32
-            else if (matchId <= 96) ptsAwarded = 7;  // R16
-            else if (matchId <= 100) ptsAwarded = 10; // QF
-            else if (matchId <= 103) ptsAwarded = 25; // SF
-            else ptsAwarded = 50;                     // Final
+            if (matchId <= 88) ptsAwarded = 5;       
+            else if (matchId <= 96) ptsAwarded = 7;  
+            else if (matchId <= 100) ptsAwarded = 10; 
+            else if (matchId <= 103) ptsAwarded = 25; 
+            else ptsAwarded = 50;                     
 
-            // Handle Knockout winners/losers
             let winner, loser;
             if (hG > aG) { winner = h; loser = a; }
             else if (hG < aG) { winner = a; loser = h; }
             else {
-                // Determine by penalties if available
                 const hP = parseInt(match.PenaltiesHome) || 0;
                 const aP = parseInt(match.PenaltiesAway) || 0;
                 if (hP > aP) { winner = h; loser = a; }
                 else { winner = a; loser = h; }
             }
-
-            teamStats[winner].pts += ptsAwarded;
-            eliminatedTeams.add(loser); // Grey them out!
+            if(teamStats[winner]) teamStats[winner].pts += ptsAwarded;
+            eliminatedTeams.add(loser); 
         }
     });
 
-    // Calculate Family Totals (1 Point = 1 Sweet Earned)
     Object.keys(teamStats).forEach(team => {
         const owner = teamStats[team].owner;
         if (familyStats[owner]) {
@@ -160,7 +164,6 @@ function processDataEngine() {
     });
 }
 
-// 3. Render Functions
 function render() {
     renderLeaderboard();
     renderGroups();
@@ -172,43 +175,27 @@ function render() {
 
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
-    let html = `<div class="table-container"><table>
-        <tr><th>Family Member</th><th>Pts Earned</th><th>Sweets Eaten</th><th>Remaining Balance</th></tr>`;
-    
-    // Sort by points
+    let html = `<div class="table-container"><table><tr><th>Family Member</th><th>Pts Earned</th><th>Sweets Eaten</th><th>Remaining Balance</th></tr>`;
     const sorted = Object.entries(familyStats).sort((a, b) => b[1].totalPts - a[1].totalPts);
-    
+    if(sorted.length === 0) html += `<tr><td colspan="4">No Data</td></tr>`;
     sorted.forEach(([name, stats]) => {
         const balance = stats.totalPts - stats.sweetsTaken;
-        html += `<tr>
-            <td><strong>${name}</strong></td>
-            <td>${stats.totalPts}</td>
-            <td>${stats.sweetsTaken}</td>
-            <td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:700;">${balance}</td>
-        </tr>`;
+        html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:700;">${balance}</td></tr>`;
     });
     div.innerHTML = html + `</table></div>`;
 }
 
 function renderGroups() {
     const div = document.getElementById('groups-data');
-    let html = `<div class="table-container"><table>
-        <tr><th>Team</th><th>Owner</th><th>Pld</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>`;
-    
+    let html = `<div class="table-container"><table><tr><th>Team</th><th>Owner</th><th>Pld</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>`;
     const sortedTeams = Object.entries(teamStats).sort((a, b) => {
         if (b[1].pts !== a[1].pts) return b[1].pts - a[1].pts;
-        return b[1].gd - a[1].gd; // GD Tiebreaker
+        return b[1].gd - a[1].gd;
     });
-
+    if(sortedTeams.length === 0) html += `<tr><td colspan="8">No Data</td></tr>`;
     sortedTeams.forEach(([name, st]) => {
         const gdClass = st.gd > 0 ? 'positive-gd' : (st.gd < 0 ? 'negative-gd' : '');
-        html += `<tr>
-            <td><strong>${name}</strong></td>
-            <td>${st.owner}</td>
-            <td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td>
-            <td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td>
-            <td><strong>${st.pts}</strong></td>
-        </tr>`;
+        html += `<tr><td><strong>${name}</strong></td><td>${st.owner}</td><td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td><td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
     });
     div.innerHTML = html + `</table></div>`;
 }
@@ -216,21 +203,16 @@ function renderGroups() {
 function renderBracket() {
     const div = document.getElementById('bracket-data');
     const rounds = [
-        {key: "R32", title: "Round of 32 (5pts)"},
-        {key: "R16", title: "Round of 16 (7pts)"},
-        {key: "QF", title: "Quarter-Finals (10pts)"},
-        {key: "SF", title: "Semi-Finals (25pts)"},
+        {key: "R32", title: "Round of 32 (5pts)"}, {key: "R16", title: "Round of 16 (7pts)"},
+        {key: "QF", title: "Quarter-Finals (10pts)"}, {key: "SF", title: "Semi-Finals (25pts)"},
         {key: "FINAL", title: "The Final (50pts)"}
     ];
 
-    let html = "";
-    // Build active bracket map
     let activeMatches = {};
     appData.fixtures?.filter(f => f.MatchID >= 73).forEach(f => {
         activeMatches[f.MatchID] = { h: f.HomeTeam, a: f.AwayTeam };
     });
 
-    // Pass winners through local logic
     KO_PATHS.forEach(path => {
         const score = appData.scores?.find(s => s.MatchID == path.id);
         if (score && path.next) {
@@ -244,42 +226,32 @@ function renderBracket() {
         }
     });
 
+    let html = "";
     rounds.forEach(r => {
         html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
-        KO_PATHS.filter(p => p.r === r.key).forEach(p => {
+        const matchesForRound = KO_PATHS.filter(p => p.r === r.key);
+        if(matchesForRound.length === 0) html += `<div>No matches mapped</div>`;
+        matchesForRound.forEach(p => {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
             const score = appData.scores?.find(s => s.MatchID == p.id) || {HomeScore: "-", AwayScore: "-"};
-            
-            html += `
-            <div class="match-card">
-                <div class="match-id">${p.id}</div>
-                <div class="match-team">
-                    <span>${matchData.h}</span><span class="score-box">${score.HomeScore}</span>
-                </div>
-                <div class="match-team">
-                    <span>${matchData.a}</span><span class="score-box">${score.AwayScore}</span>
-                </div>
-            </div>`;
+            html += `<div class="match-card"><div class="match-id">${p.id}</div><div class="match-team"><span>${matchData.h}</span><span class="score-box">${score.HomeScore}</span></div><div class="match-team"><span>${matchData.a}</span><span class="score-box">${score.AwayScore}</span></div></div>`;
         });
         html += `</div>`;
     });
-    
     div.innerHTML = html;
 }
 
 function renderTeams() {
     const div = document.getElementById('team-tables');
     let html = "";
-    
-    for (const owner of Object.keys(familyStats)) {
+    const owners = Object.keys(familyStats);
+    if(owners.length === 0) html = "<p>No teams assigned yet.</p>";
+    for (const owner of owners) {
         html += `<h3>${owner}'s Squad</h3><div class="squad-list">`;
         const myTeams = Object.keys(teamStats).filter(t => teamStats[t].owner === owner);
         myTeams.forEach(team => {
             const isOut = eliminatedTeams.has(team) ? "eliminated" : "";
-            html += `<div class="squad-card ${isOut}">
-                <span class="team-name">${team}</span>
-                <span class="points">${teamStats[team].pts} Pts Earned</span>
-            </div>`;
+            html += `<div class="squad-card ${isOut}"><span class="team-name">${team}</span><span class="points">${teamStats[team].pts} Pts</span></div>`;
         });
         html += `</div>`;
     }
@@ -289,26 +261,16 @@ function renderTeams() {
 function renderTransfers() {
     const div = document.getElementById('history-data');
     let teamOptions = `<option value="">-- Select Team --</option>`;
-    Object.keys(teamStats).forEach(t => {
-        teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`;
-    });
-
-    let html = `
-    <div class="transfer-card">
-        <h3>Execute a Swap</h3>
-        <select id="trade-team-1" class="transfer-select">${teamOptions}</select>
-        <div style="text-align:center; padding: 10px 0; font-size: 20px;">🔄</div>
-        <select id="trade-team-2" class="transfer-select">${teamOptions}</select>
-        <button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button>
-    </div>
-    <h3>Transfer History</h3>
-    <div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
-    
-    appData.transfers?.forEach(t => {
-        html += `<tr><td>${t.Date}</td><td>${t.Member1} gets ${t.Team2}</td><td>${t.Member2} gets ${t.Team1}</td></tr>`;
-    });
-    
+    Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
+    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade">Confirm Transfer</button></div>`;
+    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
+    if(!appData.transfers || appData.transfers.length === 0) {
+        html += `<tr><td colspan="3">No previous transfers</td></tr>`;
+    } else {
+        appData.transfers.forEach(t => { html += `<tr><td>${t.Date}</td><td>${t.Member1} gets ${t.Team2}</td><td>${t.Member2} gets ${t.Team1}</td></tr>`; });
+    }
     div.innerHTML = html + `</table></div>`;
 }
 
+// Start application
 init();
