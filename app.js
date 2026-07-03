@@ -30,27 +30,10 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-const FLAGS = {
-    "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
-    "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia & Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
-    "Brazil":"🇧🇷", "Morocco":"🇲🇦", "Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Haiti":"🇭🇹",
-    "United States":"🇺🇸", "Australia":"🇦🇺", "Paraguay":"🇵🇾", "Turkiye":"🇹🇷",
-    "Germany":"🇩🇪", "Ivory Coast":"🇨🇮", "Ecuador":"🇪🇨", "Curacao":"🇨🇼",
-    "Netherlands":"🇳🇱", "Japan":"🇯🇵", "Sweden":"🇸🇪", "Tunisia":"🇹🇳",
-    "Belgium":"🇧🇪", "Egypt":"🇪🇬", "Iran":"🇮🇷", "New Zealand":"🇳🇿",
-    "Spain":"🇪🇸", "Cape Verde":"🇨🇻", "Saudi Arabia":"🇸🇦", "Uruguay":"🇺🇾",
-    "France":"🇫🇷", "Norway":"🇳🇴", "Senegal":"🇸🇳", "Iraq":"🇮🇶",
-    "Argentina":"🇦🇷", "Austria":"🇦🇹", "Algeria":"🇩🇿", "Jordan":"🇯🇴",
-    "Colombia":"🇨🇴", "Portugal":"🇵🇹", "DR Congo":"🇨🇩", "Uzbekistan":"🇺🇿",
-    "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Ghana":"🇬🇭", "Croatia":"🇭🇷", "Panama":"🇵🇦"
-};
-
-function getFlag(team) { return FLAGS[team] || "🏁"; }
-
 function formatTeam(teamName) {
     if (!teamName || teamName === "TBD") return "TBD";
     const owner = teamStats[teamName] ? teamStats[teamName].owner : "?";
-    return `<span style="white-space:nowrap;">${getFlag(teamName)} <strong>${teamName}</strong> <span style="font-size:0.8em; color:#666; font-weight:normal;">(${owner})</span></span>`;
+    return `<span style="white-space:nowrap;"><strong>${teamName}</strong> <span style="font-size:0.8em; color:#666; font-weight:normal;">(${owner})</span></span>`;
 }
 
 function show(id) {
@@ -108,7 +91,7 @@ function getStandardName(name) {
 
 // JSONP ENTRY POINT
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V19 JSONP Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V20 JSONP Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -127,7 +110,7 @@ window.callback = function(parsedData) {
 };
 
 function init() {
-    logDebug("App.js (v19 - Positional Mapping). Injecting Script...");
+    logDebug("App.js (v20 - Security Warning Cleared). Injecting Script...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
@@ -186,7 +169,6 @@ function processDataEngine() {
         let pHome = findVal(match, ["penaltieshome", "penhome"], 3);
         let pAway = findVal(match, ["penaltiesaway", "penaway"], 4);
 
-        // Strict null check, allows "0" to pass through!
         if (!mId || hG_raw == null || hG_raw === "" || aG_raw == null || aG_raw === "") return;
         
         let tMap = matchTeamsMap[mId];
@@ -274,12 +256,12 @@ function renderFixtures() {
     appData.fixtures.forEach((f, i) => {
         if (Array.isArray(f) && i===0) return;
         
-        let mId = parseInt(findVal(f, ["match", "id"], 4));
+        let mId = parseInt(findVal(f, ["match", "id", "matchno"], 4));
         if(!mId) return;
         
-        let stage = findVal(f, ["stage", "round"], 0);
-        let t1 = getStandardName(findVal(f, ["team1", "home"], 2));
-        let t2 = getStandardName(findVal(f, ["team2", "away"], 3));
+        let stage = findVal(f, ["stage", "round", "group"], 0);
+        let t1 = getStandardName(findVal(f, ["team1", "home", "hometeam"], 2));
+        let t2 = getStandardName(findVal(f, ["team2", "away", "awayteam"], 3));
         
         let scoreText = "v";
         const score = appData.scores.find((s, si) => {
@@ -288,8 +270,8 @@ function renderFixtures() {
         });
 
         if (score) {
-            let hG = findVal(score, ["homescore", "hg"], 1);
-            let aG = findVal(score, ["awayscore", "ag"], 2);
+            let hG = findVal(score, ["homescore", "home", "hg", "score1"], 1);
+            let aG = findVal(score, ["awayscore", "away", "ag", "score2"], 2);
             if (hG != null && hG !== "" && aG != null && aG !== "") {
                 scoreText = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold;">${hG} - ${aG}</span>`;
             }
@@ -311,8 +293,8 @@ function renderBracket() {
             return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === path.id;
         });
         if (score && path.next) {
-            const hG = parseInt(findVal(score, ["homescore", "hg"], 1)); 
-            const aG = parseInt(findVal(score, ["awayscore", "ag"], 2));
+            const hG = parseInt(findVal(score, ["homescore", "home", "hg", "score1"], 1)); 
+            const aG = parseInt(findVal(score, ["awayscore", "away", "ag", "score2"], 2));
             const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
@@ -331,8 +313,8 @@ function renderBracket() {
                 if(Array.isArray(s) && i===0) return false;
                 return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === p.id;
             });
-            let hG = score ? findVal(score, ["homescore", "hg"], 1) : null;
-            let aG = score ? findVal(score, ["awayscore", "ag"], 2) : null;
+            let hG = score ? findVal(score, ["homescore", "home", "hg", "score1"], 1) : null;
+            let aG = score ? findVal(score, ["awayscore", "away", "ag", "score2"], 2) : null;
             hG = (hG == null || hG === "") ? "-" : hG;
             aG = (aG == null || aG === "") ? "-" : aG;
 
