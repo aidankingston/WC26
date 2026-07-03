@@ -5,12 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WC26 | Family Hub</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .score-input { width: 30px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-weight: bold; }
+        .pen-input { width: 25px; text-align: center; border: 1px dashed #aaa; border-radius: 3px; font-size: 10px; background: #f9f9f9; }
+    </style>
 </head>
 <body>
     <div class="header" onclick="show('home')">WORLD Cup 2026™</div>
 
-    <div id="debug-console" style="display:block; background:#111; color:#0f0; padding:15px; margin:10px auto; max-width:900px; font-family:monospace; font-size:12px; border-radius:8px; overflow-x:auto; max-height: 350px; overflow-y: auto; text-align:left; line-height:1.5; border: 2px solid #0f0;">
-        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS - V24]</strong><br>
+    <div id="debug-console" style="display:none; background:#111; color:#0f0; padding:15px; margin:10px auto; max-width:900px; font-family:monospace; font-size:12px; border-radius:8px; overflow-x:auto; max-height: 200px; overflow-y: auto; text-align:left; line-height:1.5;">
+        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS - V25]</strong><br>
     </div>
     
     <div id="screen-home" class="screen active">
@@ -40,6 +44,6 @@
         <div class="nav-btn" onclick="show('teams')">👥<br>Squads</div>
     </nav>
 
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=25"></script>
 </body>
 </html>
