@@ -6,9 +6,10 @@ window.addEventListener('error', function(e) {
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
 
 let appData = { scores: [], fixtures: [], config: [], sweets: [], transfers: [] };
+let manualScores = {}; // Local state for interactive knockout inputs
 let teamStats = {};      
 let familyStats = {};    
-let eliminatedTeams = new Set();
+let eliminatedTeams = {};
 let matchTeamsMap = {}; 
 
 const KO_PATHS = [
@@ -47,10 +48,13 @@ const FLAGS = {
 
 function getFlag(team) { return FLAGS[team] || "🏁"; }
 
-function formatTeam(teamName) {
+function formatTeam(teamName, includeOwner = true) {
     if (!teamName || teamName === "TBD") return "TBD";
     const owner = teamStats[teamName] ? teamStats[teamName].owner : "?";
-    return `<span style="white-space:nowrap;">${getFlag(teamName)} <strong>${teamName}</strong> <span style="font-size:0.8em; color:#666; font-weight:normal;">(${owner})</span></span>`;
+    if (includeOwner) {
+        return `<span style="white-space:nowrap;">${getFlag(teamName)} <strong>${teamName}</strong> <span style="font-size:0.8em; color:#666;">(${owner})</span></span>`;
+    }
+    return `<span style="white-space:nowrap;">${getFlag(teamName)} <strong>${teamName}</strong></span>`;
 }
 
 function show(id) {
@@ -60,24 +64,15 @@ function show(id) {
 
 function logDebug(msg) {
     const d = document.getElementById('debug-console');
-    if (d) { d.style.display = 'block'; d.innerHTML += `> ${msg}<br>`; }
+    if (d) { d.innerHTML += `> ${msg}<br>`; }
 }
 
-// Fixed Normalizer: Accurately parses flat dictionary key-value pairs
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
     if (Array.isArray(data)) return data;
     if (typeof data === 'object') {
-        return Object.keys(data).map(k => {
-            const val = data[k];
-            // If the value is another object, just attach the key
-            if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
-                return { ...val, _key: k };
-            }
-            // If it's a flat dictionary (e.g. "Mexico": "Connie"), manually set Team and Owner headers
-            return { Team: k, Owner: val, _key: k, _value: val };
-        });
+        return Object.keys(data).map(k => ({ ...data[k], _key: k, _value: data[k] }));
     }
     return [];
 }
@@ -85,16 +80,9 @@ function normalizeData(data) {
 function findKey(obj, keywords) {
     if (!obj || typeof obj !== 'object') return undefined;
     let keys = Object.keys(obj);
-    
     for (let kw of keywords) {
-        let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let exactMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKw);
+        let exactMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === kw.toLowerCase().replace(/[^a-z0-9]/g, ''));
         if (exactMatch) return obj[exactMatch];
-    }
-    for (let kw of keywords) {
-        let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let partialMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanKw));
-        if (partialMatch) return obj[partialMatch];
     }
     return undefined;
 }
@@ -112,7 +100,6 @@ function getStandardName(name) {
 }
 
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V24 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -120,67 +107,56 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
-        // --- DETAILED DATA LOAD CHECKS ---
-        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
-        
-        logDebug(`CONFIG TAB: ${appData.config.length > 0 ? "✅ " + appData.config.length + " rows" : "❌ EMPTY"}`);
-        if(appData.config.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.config[0])}`);
-
-        logDebug(`FIXTURES TAB: ${appData.fixtures.length > 0 ? "✅ " + appData.fixtures.length + " rows" : "❌ EMPTY"}`);
-        if(appData.fixtures.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.fixtures[0])}`);
-
-        logDebug(`SCORES TAB: ${appData.scores.length > 0 ? "✅ " + appData.scores.length + " rows" : "❌ EMPTY"}`);
-        if(appData.scores.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.scores[0])}`);
-
-        logDebug(`SWEETS TAB: ${appData.sweets.length > 0 ? "✅ " + appData.sweets.length + " rows" : "❌ EMPTY"}`);
-        if(appData.sweets.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.sweets[0])}`);
-
-        logDebug("<span style='color:cyan;'>------------------------</span>");
-
-        processDataEngine();
-        render();
-        
-        logDebug(`<strong>✅ ENGINE COMPLETE:</strong> Mapped ${Object.keys(teamStats).length} Teams, ${Object.keys(matchTeamsMap).length} Fixtures.`);
-        document.getElementById('sync-status').innerText = `Data Live! Loaded ${Object.keys(teamStats).length} Teams.`;
+        recalculateAndRender();
+        document.getElementById('sync-status').innerText = `Data Live!`;
     } catch(e) {
         logDebug(`<span style='color:red;'>PARSE ERROR: ${e.message}</span>`);
     }
 };
 
 function init() {
-    logDebug("App.js (v24 - Deep Diagnostics). Injecting JSONP...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
-    script.onerror = function() {
-        logDebug("<span style='color:red;'>🚨 SCRIPT LOAD FAILED</span>");
-        document.getElementById('sync-status').innerText = "Network Error.";
-    };
+    script.onerror = () => { document.getElementById('sync-status').innerText = "Network Error."; };
     document.body.appendChild(script);
 }
 
-function processDataEngine() {
-    teamStats = {}; familyStats = {}; eliminatedTeams = new Set(); matchTeamsMap = {}; 
+// Intercepts user typing in the score inputs
+function updateManualScore(matchId, field, value) {
+    if (!manualScores[matchId]) manualScores[matchId] = { hG: "", aG: "", pHome: "", pAway: "" };
+    manualScores[matchId][field] = value;
+    recalculateAndRender();
+}
+
+function recalculateAndRender() {
+    teamStats = {}; familyStats = {}; eliminatedTeams = {}; matchTeamsMap = {}; 
     
-    // 1. Configs (With fallback keys explicitly checked)
+    // 1. CONFIGS
     appData.config.forEach(c => {
-        let teamName = getStandardName(findKey(c, ['team', 'country', 'nation', '_key']));
-        let ownerName = findKey(c, ['owner', 'member', 'person', 'name', 'family', '_value']);
+        let teamName = getStandardName(c.Team || c.team || c._key);
+        let ownerName = c.Owner || c.owner || c._value;
         if(teamName) {
-            teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "" };
+            teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "", status: "Active" };
             if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
         }
     });
 
-    // 2. Sweets 
+    // 2. SWEETS (Using _key and _value directly from V24 Diagnostics)
     appData.sweets.forEach(s => {
-        let member = findKey(s, ['member', 'name', 'owner', 'person', '_key']);
-        let taken = findKey(s, ['awarded', 'sweets', 'taken', '_value']);
+        let member = s._key || findKey(s, ['member', 'name']);
+        let taken = s._value || findKey(s, ['awarded', 'sweets', 'taken']);
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
-    // 3. Fixtures 
-    appData.fixtures.forEach(f => {
+    // 3. FIXTURES
+    let sortedFixtures = [...appData.fixtures].sort((a, b) => {
+        let d1 = new Date(findKey(a, ['date']) || 0).getTime();
+        let d2 = new Date(findKey(b, ['date']) || 0).getTime();
+        return d1 - d2;
+    });
+
+    sortedFixtures.forEach(f => {
         let mId = parseInt(findKey(f, ['match', 'id']));
         let stage = findKey(f, ['stage', 'round', 'group']);
         let t1 = getStandardName(findKey(f, ['team1', 'home']));
@@ -191,18 +167,41 @@ function processDataEngine() {
             if (teamStats[t1]) teamStats[t1].group = grp;
             if (teamStats[t2]) teamStats[t2].group = grp;
         }
-        if(mId && t1 && t2) matchTeamsMap[mId] = { h: t1, a: t2 };
+        if(mId && t1 && t2) matchTeamsMap[mId] = { h: t1, a: t2, stage: stage };
     });
 
-    // 4. Scores 
-    appData.scores.forEach(match => {
-        let mId = parseInt(findKey(match, ['match', 'id']));
-        let hG_raw = findKey(match, ['homescore', 'team1score', 'score1', 'hg']);
-        let aG_raw = findKey(match, ['awayscore', 'team2score', 'score2', 'ag']);
-        let pHome = parseInt(findKey(match, ['homepen', 'team1pen', 'penhome'])) || 0;
-        let pAway = parseInt(findKey(match, ['awaypen', 'team2pen', 'penaway'])) || 0;
+    // 4. SCORES (Using hS, aS, pens, _key directly from V24 Diagnostics + Manual Local Overrides)
+    let processedMatches = [];
+    appData.scores.forEach(match => processedMatches.push(match));
 
-        if (!mId || hG_raw === undefined || hG_raw === "" || aG_raw === undefined || aG_raw === "") return;
+    // Inject manual scores
+    Object.keys(manualScores).forEach(mId => {
+        let man = manualScores[mId];
+        if (man.hG !== "" && man.aG !== "") {
+            let existing = processedMatches.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == mId);
+            if (!existing) {
+                processedMatches.push({ _key: mId, hS: man.hG, aS: man.aG, pens: man.pHome + "-" + man.pAway });
+            } else {
+                existing.hS = man.hG;
+                existing.aS = man.aG;
+                existing.pens = man.pHome + "-" + man.pAway;
+            }
+        }
+    });
+
+    processedMatches.forEach(match => {
+        let mId = parseInt(match._key || findKey(match, ['match', 'id']));
+        let hG_raw = match.hS !== undefined ? match.hS : findKey(match, ['homescore', 'hg']);
+        let aG_raw = match.aS !== undefined ? match.aS : findKey(match, ['awayscore', 'ag']);
+        let pens = match.pens || "";
+        let pHome = 0, pAway = 0;
+        
+        if (pens && pens.includes('-')) {
+            let parts = pens.split('-');
+            pHome = parseInt(parts[0]) || 0; pAway = parseInt(parts[1]) || 0;
+        }
+
+        if (!mId || hG_raw === "" || aG_raw === "" || hG_raw == null || aG_raw == null) return;
         
         let tMap = matchTeamsMap[mId];
         if (!tMap) return; 
@@ -229,8 +228,9 @@ function processDataEngine() {
             let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 103 ? 25 : 50;                     
             let winner = (hG > aG || pHome > pAway) ? h : a;
             let loser = winner === h ? a : h;
-            if(teamStats[winner]) teamStats[winner].pts += ptsAwarded;
-            if(loser) eliminatedTeams.add(loser); 
+            
+            if(teamStats[winner]) { teamStats[winner].pts += ptsAwarded; teamStats[winner].status = tMap.stage; }
+            if(teamStats[loser]) { eliminatedTeams[loser] = tMap.stage; teamStats[loser].status = "Out (" + tMap.stage + ")"; }
         }
     });
 
@@ -238,19 +238,26 @@ function processDataEngine() {
         const owner = teamStats[team].owner;
         if (familyStats[owner]) familyStats[owner].totalPts += teamStats[team].pts;
     });
+
+    render(sortedFixtures, processedMatches);
 }
 
-function render() {
-    renderLeaderboard(); renderGroups(); renderBracket(); renderFixtures(); renderTeams(); renderTransfers();
+function render(sortedFixtures, processedMatches) {
+    renderLeaderboard(); 
+    renderGroups(); 
+    renderBracket(processedMatches); 
+    renderFixtures(sortedFixtures, processedMatches); 
+    renderTeams(); 
+    renderTransfers();
 }
 
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
     let html = `<div class="table-container"><table><tr><th>Member</th><th>Pts Earned</th><th>Sweets Taken</th><th>Balance</th></tr>`;
-    const sorted = Object.entries(familyStats).sort((a, b) => b[1].totalPts - a[1].totalPts);
+    const sorted = Object.entries(familyStats).sort((a, b) => (b[1].totalPts - b[1].sweetsTaken) - (a[1].totalPts - a[1].sweetsTaken));
     sorted.forEach(([name, stats]) => {
         const balance = stats.totalPts - stats.sweetsTaken;
-        html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:700;">${balance}</td></tr>`;
+        html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:900; font-size:16px;">${balance}</td></tr>`;
     });
     div.innerHTML = html + `</table></div>`;
 }
@@ -275,52 +282,80 @@ function renderGroups() {
         gTeams.forEach(t => {
             let st = teamStats[t];
             let gdClass = st.gd > 0 ? 'positive-gd' : (st.gd < 0 ? 'negative-gd' : '');
-            html += `<tr><td>${formatTeam(t)}</td><td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td><td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
+            html += `<tr><td>${formatTeam(t, false)}</td><td>${st.pld}</td><td>${st.w}</td><td>${st.d}</td><td>${st.l}</td><td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
         });
         html += `</table></div>`;
     });
     div.innerHTML = html;
 }
 
-function renderFixtures() {
+function renderFixtures(sortedFixtures, processedMatches) {
     const div = document.getElementById('fixtures-data');
-    let html = `<div class="table-container"><table><tr><th>M#</th><th>Stage</th><th>Matchup</th></tr>`;
+    let html = `<div class="table-container"><table><tr><th>M#</th><th>Date/Stage</th><th>Matchup</th></tr>`;
     
-    appData.fixtures.forEach(f => {
+    sortedFixtures.forEach(f => {
         let mId = parseInt(findKey(f, ['match', 'id']));
         if(!mId) return;
         
         let stage = findKey(f, ['stage', 'round']);
+        let dateRaw = findKey(f, ['date']);
+        let dateStr = dateRaw ? new Date(dateRaw).toLocaleDateString(undefined, {month:'short', day:'numeric'}) : "";
         let t1 = getStandardName(findKey(f, ['team1', 'home']));
         let t2 = getStandardName(findKey(f, ['team2', 'away']));
         
-        let scoreText = "v";
-        const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === mId);
+        let score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === mId);
+        let man = manualScores[mId] || { hG: "", aG: "", pHome: "", pAway: "" };
 
-        if (score) {
-            let hG = findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
-            let aG = findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
-            if (hG !== undefined && hG !== "" && aG !== undefined && aG !== "") {
-                scoreText = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold;">${hG} - ${aG}</span>`;
-            }
+        let scoreBlock = "v";
+
+        if (mId >= 73) {
+            // Interactive Knockout Inputs
+            let displayH = score && score.hS !== undefined && score.hS !== "" ? score.hS : man.hG;
+            let displayA = score && score.aS !== undefined && score.aS !== "" ? score.aS : man.aG;
+            let displayPH = man.pHome || "";
+            let displayPA = man.pAway || "";
+            
+            scoreBlock = `
+                <div style="display:flex; justify-content:center; align-items:center; gap:5px; margin:5px 0;">
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <input type="number" class="score-input" value="${displayH}" placeholder="-" onchange="updateManualScore(${mId}, 'hG', this.value)">
+                        <input type="number" class="pen-input" value="${displayPH}" placeholder="p" onchange="updateManualScore(${mId}, 'pHome', this.value)">
+                    </div>
+                    <strong>-</strong>
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <input type="number" class="score-input" value="${displayA}" placeholder="-" onchange="updateManualScore(${mId}, 'aG', this.value)">
+                        <input type="number" class="pen-input" value="${displayPA}" placeholder="p" onchange="updateManualScore(${mId}, 'pAway', this.value)">
+                    </div>
+                </div>
+            `;
+        } else if (score && score.hS !== undefined && score.hS !== "" && score.aS !== undefined && score.aS !== "") {
+            // Standard Group Stage Render
+            scoreBlock = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold; display:inline-block; margin:8px 0;">${score.hS} - ${score.aS}</span>`;
         }
 
-        html += `<tr><td style="font-size:11px;color:#888;">${mId}</td><td style="font-size:11px;">${stage||""}</td><td style="text-align:center;">${formatTeam(t1)} <br><div style="margin:8px 0;">${scoreText}</div> ${formatTeam(t2)}</td></tr>`;
+        html += `<tr>
+            <td style="font-size:11px;color:#888; text-align:center;">${mId}</td>
+            <td style="font-size:11px; text-align:center;"><strong>${dateStr}</strong><br>${stage||""}</td>
+            <td style="text-align:center;">${formatTeam(t1, false)}<br>${scoreBlock}<br>${formatTeam(t2, false)}</td>
+        </tr>`;
     });
-    div.innerHTML = html + `</table></div>`;
+    div.innerHTML = html + `</table><p style="font-size:10px; color:#666; text-align:center;">*Scores entered manually calculate locally on your screen for testing, but do not save to Google Sheets.</p></div>`;
 }
 
-function renderBracket() {
+function renderBracket(processedMatches) {
     const div = document.getElementById('bracket-data');
     const rounds = [ {key: "R32", title: "R32"}, {key: "R16", title: "R16"}, {key: "QF", title: "QF"}, {key: "SF", title: "SF"}, {key: "FINAL", title: "Final"} ];
     let activeMatches = { ...matchTeamsMap }; 
 
     KO_PATHS.forEach(path => {
-        const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === path.id);
+        const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === path.id);
         if (score && path.next) {
-            const hG = parseInt(findKey(score, ['homescore', 'team1score', 'score1', 'hg'])); 
-            const aG = parseInt(findKey(score, ['awayscore', 'team2score', 'score2', 'ag']));
-            const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
+            const hG = parseInt(score.hS); const aG = parseInt(score.aS);
+            let pens = score.pens || "";
+            let pHome = 0, pAway = 0;
+            if (pens.includes('-')) { let parts = pens.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
+
+            const winner = (hG > aG || pHome > pAway) ? activeMatches[path.id]?.h : (aG > hG || pAway > pHome ? activeMatches[path.id]?.a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
                 if (path.isHome) activeMatches[path.next].h = winner;
@@ -334,20 +369,16 @@ function renderBracket() {
         html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
         KO_PATHS.filter(p => p.r === r.key).forEach(p => {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
-            const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === p.id);
+            const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === p.id);
             
             let hG = "-", aG = "-";
-            if (score) {
-                let tempH = findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
-                let tempA = findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
-                if (tempH !== "" && tempH !== undefined) hG = tempH;
-                if (tempA !== "" && tempA !== undefined) aG = tempA;
-            }
+            if (score && score.hS !== undefined && score.hS !== "") hG = score.hS;
+            if (score && score.aS !== undefined && score.aS !== "") aG = score.aS;
 
             html += `<div class="match-card">
                 <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${formatTeam(matchData.h)}<span class="score-box">${hG}</span></div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">${formatTeam(matchData.a)}<span class="score-box">${aG}</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${formatTeam(matchData.h, false)}<span class="score-box">${hG}</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">${formatTeam(matchData.a, false)}<span class="score-box">${aG}</span></div>
             </div>`;
         });
         html += `</div>`;
@@ -357,23 +388,34 @@ function renderBracket() {
 
 function renderTeams() {
     const div = document.getElementById('team-tables');
-    let html = "";
-    Object.keys(familyStats).forEach(owner => {
-        html += `<h3>${owner}'s Squad</h3><div class="squad-list">`;
-        Object.keys(teamStats).filter(t => teamStats[t].owner === owner).forEach(team => {
-            const isOut = eliminatedTeams.has(team) ? "eliminated" : "";
-            html += `<div class="squad-card ${isOut}"><span>${formatTeam(team)}</span><span class="points">${teamStats[team].pts} Pts</span></div>`;
-        });
-        html += `</div>`;
+    let html = `<div class="table-container"><table><tr><th>Team</th><th>Owner</th><th>Pld</th><th>GD</th><th>Pts</th><th>Status</th></tr>`;
+    
+    let sortedTeams = Object.keys(teamStats).sort((a, b) => {
+        if (teamStats[a].owner !== teamStats[b].owner) return teamStats[a].owner.localeCompare(teamStats[b].owner);
+        return teamStats[b].pts - teamStats[a].pts;
     });
-    div.innerHTML = html;
+
+    sortedTeams.forEach(t => {
+        let st = teamStats[t];
+        let statusColor = st.status.includes("Out") ? "red" : "green";
+        let gdClass = st.gd > 0 ? 'positive-gd' : (st.gd < 0 ? 'negative-gd' : '');
+        html += `<tr>
+            <td>${formatTeam(t, false)}</td>
+            <td><strong>${st.owner}</strong></td>
+            <td>${st.pld}</td>
+            <td class="${gdClass}">${st.gd > 0 ? '+'+st.gd : st.gd}</td>
+            <td><strong>${st.pts}</strong></td>
+            <td style="color:${statusColor}; font-size:11px; font-weight:bold;">${st.status}</td>
+        </tr>`;
+    });
+    div.innerHTML = html + `</table></div>`;
 }
 
 function renderTransfers() {
     const div = document.getElementById('history-data');
     let teamOptions = `<option value="">-- Select Team --</option>`;
     Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
-    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button></div>`;
+    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade">Confirm Transfer</button></div>`;
     html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
     if(!appData.transfers || appData.transfers.length === 0) {
         html += `<tr><td colspan="3">No previous transfers recorded.</td></tr>`;
@@ -384,7 +426,7 @@ function renderTransfers() {
             const t1 = findKey(t, ["team1"]);
             const p2 = findKey(t, ["person2", "member2"]);
             const t2 = findKey(t, ["team2"]);
-            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${formatTeam(t2)}</td><td>${p2} gets ${formatTeam(t1)}</td></tr>`; 
+            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${formatTeam(t2, false)}</td><td>${p2} gets ${formatTeam(t1, false)}</td></tr>`; 
         });
     }
     div.innerHTML = html + `</table></div>`;
