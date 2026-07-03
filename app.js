@@ -1,6 +1,6 @@
 window.addEventListener('error', function(e) {
     const d = document.getElementById('debug-console');
-    if(d) { d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
+    if(d) { d.style.display = 'block'; d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
 });
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
@@ -32,7 +32,6 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-// All 48 Official Flags
 const FLAGS = {
     "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
     "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia & Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
@@ -48,22 +47,33 @@ const FLAGS = {
     "England":"🇬🇧", "Scotland":"🇬🇧" 
 };
 
-function getFlag(team) { return FLAGS[team] || "🏁"; }
+// Case-Insensitive Flag Matcher
+function getFlag(team) {
+    if(!team) return "🏁";
+    let tLower = team.toLowerCase().trim();
+    for(let key in FLAGS) {
+        if(key.toLowerCase() === tLower) return FLAGS[key];
+    }
+    return "🏁";
+}
 
 function getStandardName(name) {
     if (!name) return "";
     let n = name.toString().trim();
-    if(n.length <= 3) return n; 
+    // Protect bracket placeholders (1A, 2B, etc.) but allow 'USA' to normalize
+    if (/^[1-3][A-L]$/i.test(n)) return n.toUpperCase(); 
+    
+    const lowerN = n.toLowerCase();
     const map = {
         "usa": "United States", "korea republic": "South Korea", 
         "bosnia and herzegovina": "Bosnia & Herzegovina", "türkiye": "Turkiye", 
         "côte d'ivoire": "Ivory Coast", "curaçao": "Curacao", "cabo verde": "Cape Verde", 
         "congo dr": "DR Congo", "ir iran": "Iran"
     };
-    return map[n.toLowerCase()] || n;
+    if (map[lowerN]) return map[lowerN];
+    return n;
 }
 
-// Global Team Formatter: Guarantees Flag and Owner everywhere
 function formatTeam(teamName, includeOwner = true) {
     if (!teamName || teamName === "TBD") return "TBD";
     const actualTeam = groupRankings[teamName] || teamName;
@@ -85,13 +95,10 @@ function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-'+id).classList.add('active');
     
-    // Auto-Scroll to Next Match
     if(id === 'fixtures') {
         setTimeout(() => {
             let el = document.getElementById('current-match');
-            if(el) {
-                el.scrollIntoView({behavior: 'smooth', block: 'center'});
-            }
+            if(el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
         }, 150);
     }
 }
@@ -124,9 +131,7 @@ window.callback = function(parsedData) {
         
         processDataEngine();
         document.getElementById('sync-status').innerText = `Data Live!`;
-    } catch(e) {
-        console.error(e);
-    }
+    } catch(e) { console.error(e); }
 };
 
 function init() {
@@ -154,22 +159,68 @@ async function saveScore(matchId) {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ matchId: matchId, hG: hG, aG: aG, pHome: pHome, pAway: pAway })
+            body: JSON.stringify({ action: 'score', matchId: matchId, hG: hG, aG: aG, pHome: pHome, pAway: pAway })
         });
         
         let existing = appData.scores.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == matchId);
-        if (!existing) {
-            appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway });
-        } else {
-            existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway;
-        }
+        if (!existing) appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway });
+        else { existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway; }
         
         btn.innerText = "SAVED!";
         btn.style.background = "#27ae60";
         setTimeout(() => { processDataEngine(); }, 500); 
     } catch(e) {
-        alert("Save failed. Check console.");
+        alert("Save failed. Check network.");
         btn.innerText = "SAVE RESULT";
+        btn.classList.remove('loading');
+    }
+}
+
+// FULLY FUNCTIONAL TRANSFER EXECUTION
+async function executeTransfer() {
+    const sel1 = document.getElementById('transfer-team-1');
+    const sel2 = document.getElementById('transfer-team-2');
+    const btn = document.getElementById('btn-exec-transfer');
+    
+    const t1 = sel1.value; const t2 = sel2.value;
+    if(!t1 || !t2 || t1 === t2) { alert("Please select two different teams."); return; }
+    
+    const p1 = teamStats[t1].owner; const p2 = teamStats[t2].owner;
+    
+    if(!confirm(`Trade ${t1} (${p1}) for ${t2} (${p2})?`)) return;
+    
+    btn.innerText = "SWAPPING...";
+    btn.classList.add('loading');
+    
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 })
+        });
+        
+        // Update Local State for immediate UI refresh
+        let c1 = appData.config.find(c => getStandardName(c.Team || c.team || c._key) === t1);
+        let c2 = appData.config.find(c => getStandardName(c.Team || c.team || c._key) === t2);
+        if(c1) { c1.Owner = p2; c1._value = p2; }
+        if(c2) { c2.Owner = p1; c2._value = p1; }
+        
+        let dStr = new Date().toISOString().split('T')[0];
+        appData.transfers.push({ date: dStr, person1: p1, team1: t1, person2: p2, team2: t2 });
+        
+        btn.innerText = "TRADE COMPLETE!";
+        btn.style.background = "#27ae60";
+        setTimeout(() => { 
+            btn.innerText = "Confirm Transfer"; 
+            btn.style.background = "var(--primary)";
+            btn.classList.remove('loading');
+            sel1.value = ""; sel2.value = "";
+            processDataEngine(); 
+        }, 1500); 
+    } catch(e) {
+        alert("Transfer failed.");
+        btn.innerText = "Confirm Transfer";
         btn.classList.remove('loading');
     }
 }
@@ -388,4 +439,143 @@ function renderFixtures(sortedFixtures, processedMatches) {
                     <div class="score-inputs">
                         <input type="number" id="hg-${mId}" class="score-box-input" value="${hG}" onchange="updateManualScore(${mId}, 'hG', this.value)">
                         <span class="score-dash">-</span>
-                        <input type="number" id="ag-${mId}" class="score-box-input" value="${aG}" onchange="updateManualScore(${mId}, '
+                        <input type="number" id="ag-${mId}" class="score-box-input" value="${aG}" onchange="updateManualScore(${mId}, 'aG', this.value)">
+                    </div>
+                    <div class="pen-inputs">${penInputs}</div>
+                </div>
+                <div class="team-block away">
+                    <span class="team-flag">${getFlag(t2)}</span>
+                    <span class="team-name">${t2}</span>
+                    <span class="team-owner">${o2}</span>
+                </div>
+            </div>
+            <button id="btn-save-${mId}" class="btn-save" onclick="saveScore(${mId})">Save Result</button>
+        </div>`;
+    });
+    div.innerHTML = html;
+}
+
+function renderBracket(processedMatches) {
+    const div = document.getElementById('bracket-data');
+    const rounds = [ {key: "R32", title: "R32"}, {key: "R16", title: "R16"}, {key: "QF", title: "QF"}, {key: "SF", title: "SF"}, {key: "FINAL", title: "Final"} ];
+    let activeMatches = { ...matchTeamsMap }; 
+
+    KO_PATHS.forEach(path => {
+        const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === path.id);
+        if (score && path.next) {
+            let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
+            let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+            const hG = parseInt(tempH); const aG = parseInt(tempA);
+            
+            let pensStr = String(score.pens || "");
+            let pHome = parseInt(findKey(score, ['penaltieshome', 'homepen', 'penhome'])) || 0;
+            let pAway = parseInt(findKey(score, ['penaltiesaway', 'awaypen', 'penaway'])) || 0;
+            if (pensStr.includes('-')) { let parts = pensStr.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
+
+            let tMap = matchTeamsMap[path.id];
+            let actualH = groupRankings[tMap?.h] || tMap?.h;
+            let actualA = groupRankings[tMap?.a] || tMap?.a;
+
+            const winner = (hG > aG || pHome > pAway) ? actualH : (aG > hG || pAway > pHome ? actualA : null); 
+            if (winner) {
+                if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
+                if (path.isHome) activeMatches[path.next].h = winner;
+                else activeMatches[path.next].a = winner;
+            }
+        }
+    });
+
+    let html = "";
+    rounds.forEach(r => {
+        html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
+        KO_PATHS.filter(p => p.r === r.key).forEach(p => {
+            const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
+            const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === p.id);
+            
+            let hG = "-", aG = "-";
+            if (score) {
+                let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
+                let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+                if (tempH !== "" && tempH !== undefined) hG = tempH;
+                if (tempA !== "" && tempA !== undefined) aG = tempA;
+            }
+
+            let finalH = groupRankings[matchData.h] || matchData.h;
+            let finalA = groupRankings[matchData.a] || matchData.a;
+
+            html += `<div class="match-card">
+                <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    ${formatTeam(finalH, true)} <span class="score-box">${hG}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    ${formatTeam(finalA, true)} <span class="score-box">${aG}</span>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    });
+    div.innerHTML = html;
+}
+
+function renderTeams() {
+    const div = document.getElementById('team-tables');
+    let html = "";
+    
+    Object.keys(familyStats).forEach(owner => {
+        html += `<div class="family-squad-section">
+            <h3>${owner}'s Squad</h3>
+            <div class="table-container"><table><tr><th>Team</th><th>Pld</th><th>GD</th><th>Pts</th><th>Status</th></tr>`;
+        
+        let memberTeams = Object.keys(teamStats).filter(t => teamStats[t].owner === owner).sort((a,b) => teamStats[b].pts - teamStats[a].pts);
+        
+        memberTeams.forEach(t => {
+            let st = teamStats[t];
+            let statusColor = st.status.includes("Out") ? "red" : "green";
+            html += `<tr>
+                <td>${formatTeam(t, false)}</td>
+                <td>${st.pld}</td>
+                <td>${st.gd > 0 ? '+'+st.gd : st.gd}</td>
+                <td><strong>${st.pts}</strong></td>
+                <td style="color:${statusColor}; font-size:11px; font-weight:bold;">${st.status}</td>
+            </tr>`;
+        });
+        html += `</table></div></div>`;
+    });
+    div.innerHTML = html;
+}
+
+function renderTransfers() {
+    const div = document.getElementById('history-data');
+    
+    // Build active team options
+    let teamOptions = `<option value="">-- Select Team --</option>`;
+    let sortedTeams = Object.keys(teamStats).sort((a,b) => teamStats[a].owner.localeCompare(teamStats[b].owner));
+    sortedTeams.forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
+    
+    let html = `
+    <div class="family-squad-section">
+        <h3>Execute a Swap</h3>
+        <select id="transfer-team-1" class="transfer-select">${teamOptions}</select>
+        <div style="text-align:center; padding:5px; font-size:20px;">🔄</div>
+        <select id="transfer-team-2" class="transfer-select">${teamOptions}</select>
+        <button id="btn-exec-transfer" class="btn-save" onclick="executeTransfer()">Confirm Transfer</button>
+    </div>`;
+
+    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
+    if(!appData.transfers || appData.transfers.length === 0) {
+        html += `<tr><td colspan="3" style="text-align:center;">No previous transfers recorded.</td></tr>`;
+    } else {
+        appData.transfers.forEach(t => { 
+            const d = findKey(t, ["date", "timestamp"]);
+            const p1 = findKey(t, ["person1", "member1"]);
+            const t1 = findKey(t, ["team1"]);
+            const p2 = findKey(t, ["person2", "member2"]);
+            const t2 = findKey(t, ["team2"]);
+            if(d && p1) html += `<tr><td style="font-size:11px;">${d}</td><td><strong>${p1}</strong> gets<br>${formatTeam(t2, false)}</td><td><strong>${p2}</strong> gets<br>${formatTeam(t1, false)}</td></tr>`; 
+        });
+    }
+    div.innerHTML = html + `</table></div>`;
+}
+
+init();
