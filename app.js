@@ -66,10 +66,27 @@ function logDebug(msg) {
 
 function normalizeData(data) {
     if (!data) return [];
-    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
     if (Array.isArray(data)) return data;
     if (typeof data === 'object') return Object.keys(data).map(k => ({ ...data[k], _key: k }));
     return [];
+}
+
+function findVal(obj, searchStrings) {
+    if (!obj) return "";
+    if (Array.isArray(obj)) {
+        for (let s of searchStrings) { if (typeof s === 'number' && obj[s] !== undefined) return obj[s]; }
+        return "";
+    }
+    for (let k of Object.keys(obj)) {
+        let cleanK = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (let s of searchStrings) {
+            if (typeof s === 'string') {
+                let cleanS = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (cleanK.includes(cleanS)) return obj[k];
+            }
+        }
+    }
+    return obj._key || obj._value || "";
 }
 
 function getStandardName(name) {
@@ -84,88 +101,98 @@ function getStandardName(name) {
     return map[n.toLowerCase()] || n;
 }
 
-async function init() {
-    logDebug("App.js (v16). Fetching data...");
-    document.getElementById('sync-status').innerText = "Downloading Google Sheet...";
+// ------------------------------------------------------------------
+// CORE FIX: JSONP GLOBAL CALLBACK LISTENER
+// This function name matches the Google Apps Script output exactly.
+// ------------------------------------------------------------------
+window.callback = function(parsedData) {
+    logDebug("<span style='color:lime;'>SUCCESS: JSONP Payload intercepted!</span>");
     
     try {
-        const res = await fetch(SCRIPT_URL + "?action=getAll");
-        if (!res.ok) throw new Error(`HTTP Status: ${res.status}`);
-        const raw = await res.text();
-        
-        let parsedData;
-        try { parsedData = JSON.parse(raw); } 
-        catch(err) { parsedData = JSON.parse(raw.substring(raw.indexOf('(')+1, raw.lastIndexOf(')'))); }
+        logDebug(`JSON Keys found: ${Object.keys(parsedData).join(', ')}`);
 
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
         appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
+        
+        logDebug(`Array Sizes -> Configs: ${appData.config.length}, Fixtures: ${appData.fixtures.length}, Scores: ${appData.scores.length}`);
+        
+        if (appData.config.length === 0 || appData.fixtures.length === 0) {
+             logDebug("<span style='color:red;'>🚨 Arrays are empty. The names of the tabs in your Google Sheet might not match.</span>");
+        }
 
         processDataEngine();
         render();
         document.getElementById('sync-status').innerText = "Data Live.";
-        setTimeout(() => { document.getElementById('debug-console').style.display = 'none'; }, 3000);
     } catch(e) {
-        logDebug(`<span style='color:red;'>ERROR: ${e.message}</span>`);
-        document.getElementById('sync-status').innerText = "Sync Failed. Check Debug Box.";
+        logDebug(`<span style='color:red;'>JSONP PARSE ERROR: ${e.message}</span>`);
     }
+};
+
+// ------------------------------------------------------------------
+// INJECTION INITIATOR (Replaces "Fetch")
+// ------------------------------------------------------------------
+function init() {
+    logDebug("App.js (v18 - JSONP Architecture). Injecting Script...");
+    document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
+    
+    // Create a native script tag to bypass CORS and load the callback function
+    const script = document.createElement('script');
+    script.src = SCRIPT_URL + "?action=getAll";
+    script.onerror = function() {
+        logDebug("<span style='color:red;'>🚨 SCRIPT LOAD FAILED: Network error or AdBlocker interference.</span>");
+        document.getElementById('sync-status').innerText = "Network Error.";
+    };
+    document.body.appendChild(script);
 }
 
 function processDataEngine() {
     teamStats = {}; familyStats = {}; eliminatedTeams = new Set(); matchTeamsMap = {}; 
     
-    // 1. Setup Owners
     appData.config.forEach((c, i) => {
         if (Array.isArray(c) && i === 0) return;
-        let teamName = getStandardName(Array.isArray(c) ? c[0] : (c.Team ?? c.team ?? c.TEAM ?? c._key));
-        let ownerName = Array.isArray(c) ? c[1] : (c.Owner ?? c.owner ?? c.FamilyMember ?? c.Name);
+        let teamName = getStandardName(findVal(c, [0, "team", "country"]));
+        let ownerName = findVal(c, [1, "owner", "name", "familymember"]);
         if(teamName) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "" };
             if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
         }
     });
 
-    // 2. Sweets Economy
     appData.sweets.forEach((s, i) => {
         if (Array.isArray(s) && i === 0) return;
-        let member = Array.isArray(s) ? s[0] : (s.Member ?? s.FamilyMember ?? s.Name ?? s._key);
-        let taken = Array.isArray(s) ? s[1] : (s.Awarded ?? s.SweetsTaken ?? s.Sweets);
+        let member = findVal(s, [0, "member", "name", "owner"]);
+        let taken = findVal(s, [1, "awarded", "sweetstaken", "taken"]);
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
-    // 3. Fixtures (Inner Join Map + Assign Groups)
     appData.fixtures.forEach((f, i) => {
         if (Array.isArray(f) && i === 0) return;
-        
-        let stage = Array.isArray(f) ? f[0] : (f.Stage ?? f.stage ?? f.Round);
-        let t1 = getStandardName(Array.isArray(f) ? f[2] : (f["Team 1"] ?? f.Team1 ?? f.HomeTeam));
-        let t2 = getStandardName(Array.isArray(f) ? f[3] : (f["Team 2"] ?? f.Team2 ?? f.AwayTeam));
-        let mId = parseInt(Array.isArray(f) ? f[4] : (f["Match #"] ?? f.MatchID ?? f.ID));
+        let mId = parseInt(findVal(f, [4, "match", "id", "matchno"]));
+        let stage = findVal(f, [0, "stage", "round", "group"]);
+        let t1 = findVal(f, [2, "team1", "home"]);
+        let t2 = findVal(f, [3, "team2", "away"]);
 
-        // Assign to 12 Groups
         if (stage && String(stage).toLowerCase().includes("group")) {
             let grp = String(stage).trim();
-            if (teamStats[t1]) teamStats[t1].group = grp;
-            if (teamStats[t2]) teamStats[t2].group = grp;
+            if (teamStats[getStandardName(t1)]) teamStats[getStandardName(t1)].group = grp;
+            if (teamStats[getStandardName(t2)]) teamStats[getStandardName(t2)].group = grp;
         }
-
-        if(mId && t1 && t2) matchTeamsMap[mId] = { h: t1, a: t2 };
+        if(mId && t1 && t2) matchTeamsMap[mId] = { h: getStandardName(t1), a: getStandardName(t2) };
     });
 
-    // 4. Score Math
     appData.scores.forEach((match, i) => {
         if (Array.isArray(match) && (i === 0 || String(match[0]).toLowerCase().includes('id'))) return;
         
-        let mId = parseInt(Array.isArray(match) ? match[0] : (match.MatchID ?? match.ID));
-        let hG_raw = Array.isArray(match) ? match[1] : (match.HomeScore ?? match.HG);
-        let aG_raw = Array.isArray(match) ? match[2] : (match.AwayScore ?? match.AG);
-        let pHome = Array.isArray(match) ? match[3] : (match.PenaltiesHome ?? match.PenHome);
-        let pAway = Array.isArray(match) ? match[4] : (match.PenaltiesAway ?? match.PenAway);
+        let mId = parseInt(findVal(match, [0, "matchid", "match", "id"]));
+        let hG_raw = findVal(match, [1, "homescore", "hg"]);
+        let aG_raw = findVal(match, [2, "awayscore", "ag"]);
+        let pHome = findVal(match, [3, "penaltieshome", "penhome"]);
+        let pAway = findVal(match, [4, "penaltiesaway", "penaway"]);
 
-        // Strict null checks to prevent "0" from breaking
-        if (!mId || hG_raw === undefined || hG_raw === "" || aG_raw === undefined || aG_raw === "") return;
+        if (!mId || hG_raw === "" || aG_raw === "") return;
         
         let tMap = matchTeamsMap[mId];
         if (!tMap) return; 
@@ -190,13 +217,8 @@ function processDataEngine() {
             }
         } else {
             let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 103 ? 25 : 50;                     
-            let winner, loser;
-            if (hG > aG) { winner = h; loser = a; }
-            else if (hG < aG) { winner = a; loser = h; }
-            else {
-                if ((parseInt(pHome)||0) > (parseInt(pAway)||0)) { winner = h; loser = a; }
-                else { winner = a; loser = h; }
-            }
+            let winner = (hG > aG || (parseInt(pHome)||0) > (parseInt(pAway)||0)) ? h : a;
+            let loser = winner === h ? a : h;
             if(teamStats[winner]) teamStats[winner].pts += ptsAwarded;
             if(loser) eliminatedTeams.add(loser); 
         }
@@ -247,8 +269,6 @@ function renderGroups() {
         });
         html += `</table></div>`;
     });
-    
-    if(html === "") html = "<p>No Groups detected. Check Fixtures tab 'Stage' column.</p>";
     div.innerHTML = html;
 }
 
@@ -259,23 +279,23 @@ function renderFixtures() {
     appData.fixtures.forEach((f, i) => {
         if (Array.isArray(f) && i===0) return;
         
-        let mId = parseInt(Array.isArray(f) ? f[4] : (f["Match #"] ?? f.MatchID));
+        let mId = parseInt(findVal(f, [4, "match", "id"]));
         if(!mId) return;
         
-        let stage = Array.isArray(f) ? f[0] : (f.Stage ?? f.Round);
-        let t1 = getStandardName(Array.isArray(f) ? f[2] : (f["Team 1"] ?? f.HomeTeam));
-        let t2 = getStandardName(Array.isArray(f) ? f[3] : (f["Team 2"] ?? f.AwayTeam));
+        let stage = findVal(f, [0, "stage", "round"]);
+        let t1 = getStandardName(findVal(f, [2, "team1", "home"]));
+        let t2 = getStandardName(findVal(f, [3, "team2", "away"]));
         
         let scoreText = "v";
         const score = appData.scores.find((s, si) => {
             if(Array.isArray(s) && si===0) return false;
-            return parseInt(Array.isArray(s) ? s[0] : (s.MatchID ?? s.ID)) === mId;
+            return parseInt(findVal(s, [0, "matchid", "match", "id"])) === mId;
         });
 
         if (score) {
-            let hG = Array.isArray(score) ? score[1] : (score.HomeScore ?? score.HG);
-            let aG = Array.isArray(score) ? score[2] : (score.AwayScore ?? score.AG);
-            if (hG !== undefined && hG !== "" && aG !== undefined && aG !== "") {
+            let hG = findVal(score, [1, "homescore", "hg"]);
+            let aG = findVal(score, [2, "awayscore", "ag"]);
+            if (hG !== "" && aG !== "") {
                 scoreText = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold;">${hG} - ${aG}</span>`;
             }
         }
@@ -293,11 +313,11 @@ function renderBracket() {
     KO_PATHS.forEach(path => {
         const score = appData.scores.find((s, i) => {
             if(Array.isArray(s) && i===0) return false;
-            return parseInt(Array.isArray(s) ? s[0] : (s.MatchID ?? s.ID)) === path.id;
+            return parseInt(findVal(s, [0, "matchid", "match", "id"])) === path.id;
         });
         if (score && path.next) {
-            const hG = parseInt(Array.isArray(score) ? score[1] : (score.HomeScore ?? score.HG)); 
-            const aG = parseInt(Array.isArray(score) ? score[2] : (score.AwayScore ?? score.AG));
+            const hG = parseInt(findVal(score, [1, "homescore", "hg"])); 
+            const aG = parseInt(findVal(score, [2, "awayscore", "ag"]));
             const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
             if (winner) {
                 if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
@@ -314,10 +334,10 @@ function renderBracket() {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
             const score = appData.scores.find((s, i) => {
                 if(Array.isArray(s) && i===0) return false;
-                return parseInt(Array.isArray(s) ? s[0] : (s.MatchID ?? s.ID)) === p.id;
+                return parseInt(findVal(s, [0, "matchid", "match", "id"])) === p.id;
             });
-            const hG = score ? (Array.isArray(score) ? score[1] : (score.HomeScore ?? score.HG)) ?? "-" : "-";
-            const aG = score ? (Array.isArray(score) ? score[2] : (score.AwayScore ?? score.AG)) ?? "-" : "-";
+            const hG = score ? (findVal(score, [1, "homescore", "hg"]) || "-") : "-";
+            const aG = score ? (findVal(score, [2, "awayscore", "ag"]) || "-") : "-";
             html += `<div class="match-card">
                 <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${formatTeam(matchData.h)}<span class="score-box">${hG}</span></div>
@@ -354,11 +374,11 @@ function renderTransfers() {
     } else {
         appData.transfers.forEach((t, i) => { 
             if (Array.isArray(t) && i === 0) return;
-            const d = Array.isArray(t) ? t[0] : (t.Timestamp ?? t.Date);
-            const p1 = Array.isArray(t) ? t[1] : (t["Person 1"] ?? t.Member1);
-            const t1 = Array.isArray(t) ? t[2] : (t["Team 1"] ?? t.Team1);
-            const p2 = Array.isArray(t) ? t[3] : (t["Person 2"] ?? t.Member2);
-            const t2 = Array.isArray(t) ? t[4] : (t["Team 2"] ?? t.Team2);
+            const d = findVal(t, [0, "timestamp", "date"]);
+            const p1 = findVal(t, [1, "person1", "member1"]);
+            const t1 = findVal(t, [2, "team1"]);
+            const p2 = findVal(t, [3, "person2", "member2"]);
+            const t2 = findVal(t, [4, "team2"]);
             if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${formatTeam(t2)}</td><td>${p2} gets ${formatTeam(t1)}</td></tr>`; 
         });
     }
