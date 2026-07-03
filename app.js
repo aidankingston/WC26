@@ -101,7 +101,7 @@ function findKey(obj, keywords) {
 }
 
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V27 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V28 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -109,18 +109,6 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
-        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
-        logDebug(`CONFIG TAB: ${appData.config.length} rows. Row 0: ${JSON.stringify(appData.config[0] || {})}`);
-        logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows. Row 0: ${JSON.stringify(appData.fixtures[0] || {})}`);
-        logDebug(`SCORES TAB: ${appData.scores.length} rows. Row 0: ${JSON.stringify(appData.scores[0] || {})}`);
-        logDebug("<span style='color:cyan;'>------------------------</span>");
-
-        // MARKDOWN PASTE DETECTOR
-        let keysCheck = Object.keys(appData.fixtures[0] || {}).join("");
-        if(keysCheck.includes("|")) {
-            logDebug("<span style='color:red; font-size:14px; font-weight:bold;'>🚨 WARNING: Markdown Pipes (|) detected in column headers! You copy-pasted the table incorrectly into Google Sheets. Please paste as plain text and use 'Split Text to Columns'.</span>");
-        }
-
         processDataEngine();
         document.getElementById('sync-status').innerText = `Data Live!`;
     } catch(e) {
@@ -229,9 +217,16 @@ function processDataEngine() {
         let mId = parseInt(match._key || findKey(match, ['match', 'id']));
         let hG_raw = match.hS !== undefined ? match.hS : findKey(match, ['homescore', 'hg']);
         let aG_raw = match.aS !== undefined ? match.aS : findKey(match, ['awayscore', 'ag']);
-        let pens = match.pens || "";
-        let pHome = 0, pAway = 0;
-        if (pens && pens.includes('-')) { let parts = pens.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
+        
+        let pensStr = String(match.pens || "");
+        let pHome = parseInt(findKey(match, ['penaltieshome', 'homepen', 'penhome'])) || 0;
+        let pAway = parseInt(findKey(match, ['penaltiesaway', 'awaypen', 'penaway'])) || 0;
+        
+        if (pensStr.includes('-')) { 
+            let parts = pensStr.split('-'); 
+            pHome = parseInt(parts[0])||0; 
+            pAway = parseInt(parts[1])||0; 
+        }
 
         if (!mId || hG_raw === "" || aG_raw === "" || hG_raw == null || aG_raw == null) return;
         
@@ -355,9 +350,21 @@ function renderFixtures(sortedFixtures, processedMatches) {
 
         let hG = score && score.hS !== undefined && score.hS !== "" ? score.hS : man.hG;
         let aG = score && score.aS !== undefined && score.aS !== "" ? score.aS : man.aG;
-        let pens = score ? score.pens || "" : "";
-        let pHome = man.pHome || ""; let pAway = man.pAway || "";
-        if (pens.includes('-')) { let pts = pens.split('-'); pHome = pts[0]; pAway = pts[1]; }
+        
+        let pHome = man.pHome || ""; 
+        let pAway = man.pAway || "";
+        
+        if (score) {
+            let pensStr = String(score.pens || "");
+            if (pensStr.includes('-')) {
+                let pts = pensStr.split('-'); pHome = pts[0]; pAway = pts[1];
+            } else {
+                let sPh = findKey(score, ['penaltieshome', 'homepen', 'penhome']);
+                let sPa = findKey(score, ['penaltiesaway', 'awaypen', 'penaway']);
+                if (sPh !== undefined && sPh !== "") pHome = sPh;
+                if (sPa !== undefined && sPa !== "") pAway = sPa;
+            }
+        }
 
         let isNextId = "";
         let badgeHtml = "";
@@ -413,10 +420,15 @@ function renderBracket(processedMatches) {
     KO_PATHS.forEach(path => {
         const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === path.id);
         if (score && path.next) {
-            const hG = parseInt(score.hS); const aG = parseInt(score.aS);
-            let pens = score.pens || "";
-            let pHome = 0, pAway = 0;
-            if (pens.includes('-')) { let parts = pens.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
+            let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'hg']);
+            let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'ag']);
+            const hG = parseInt(tempH);
+            const aG = parseInt(tempA);
+            
+            let pensStr = String(score.pens || "");
+            let pHome = parseInt(findKey(score, ['penaltieshome', 'homepen', 'penhome'])) || 0;
+            let pAway = parseInt(findKey(score, ['penaltiesaway', 'awaypen', 'penaway'])) || 0;
+            if (pensStr.includes('-')) { let parts = pensStr.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
 
             let tMap = matchTeamsMap[path.id];
             let actualH = groupRankings[tMap?.h] || tMap?.h;
@@ -439,8 +451,12 @@ function renderBracket(processedMatches) {
             const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === p.id);
             
             let hG = "-", aG = "-";
-            if (score && score.hS !== undefined && score.hS !== "") hG = score.hS;
-            if (score && score.aS !== undefined && score.aS !== "") aG = score.aS;
+            if (score) {
+                let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
+                let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+                if (tempH !== "" && tempH !== undefined) hG = tempH;
+                if (tempA !== "" && tempA !== undefined) aG = tempA;
+            }
 
             let finalH = groupRankings[matchData.h] || matchData.h;
             let finalA = groupRankings[matchData.a] || matchData.a;
@@ -504,7 +520,7 @@ function renderTransfers() {
             const t1 = findKey(t, ["team1"]);
             const p2 = findKey(t, ["person2", "member2"]);
             const t2 = findKey(t, ["team2"]);
-            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${getFlag(t2)} ${t2}</td><td>${p2} gets ${getFlag(t1)} ${t1}</td></tr>`; 
+            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets <span style="font-size:16px;">${getFlag(t2)}</span> ${t2}</td><td>${p2} gets <span style="font-size:16px;">${getFlag(t1)}</span> ${t1}</td></tr>`; 
         });
     }
     div.innerHTML = html + `</table></div>`;
