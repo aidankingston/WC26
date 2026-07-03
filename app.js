@@ -30,7 +30,6 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-// Safe Emoji Dictionary (No Zero-Width Joiners to prevent Editor Security Warnings)
 const FLAGS = {
     "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
     "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia & Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
@@ -43,7 +42,7 @@ const FLAGS = {
     "Argentina":"🇦🇷", "Austria":"🇦🇹", "Algeria":"🇩🇿", "Jordan":"🇯🇴",
     "Colombia":"🇨🇴", "Portugal":"🇵🇹", "DR Congo":"🇨🇩", "Uzbekistan":"🇺🇿",
     "Panama":"🇵🇦", "Haiti":"🇭🇹", "Ghana":"🇬🇭", "Croatia":"🇭🇷", "United States":"🇺🇸",
-    "England":"🇬🇧", "Scotland":"🇬🇧" // Replaced with standard UK flag for code safety
+    "England":"🇬🇧", "Scotland":"🇬🇧" 
 };
 
 function getFlag(team) { return FLAGS[team] || "🏁"; }
@@ -64,7 +63,16 @@ function logDebug(msg) {
     if (d) { d.style.display = 'block'; d.innerHTML += `> ${msg}<br>`; }
 }
 
-// Adapts exactly to your column headers
+// Data Shock-Absorber (Converts Dictionaries to Arrays)
+function normalizeData(data) {
+    if (!data) return [];
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'object') return Object.keys(data).map(k => ({ ...data[k], _key: k }));
+    return [];
+}
+
+// Intelligent Column Mapping
 function findKey(obj, keywords) {
     if (!obj || typeof obj !== 'object') return undefined;
     let keys = Object.keys(obj);
@@ -94,15 +102,16 @@ function getStandardName(name) {
     return map[n.toLowerCase()] || n;
 }
 
-// JSONP ENTRY
+// JSONP ENTRY POINT
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V22 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V23 Payload Intercepted!</span>");
     try {
-        appData.scores = parsedData.Scores || parsedData.scores || [];
-        appData.fixtures = parsedData.Fixtures || parsedData.fixtures || [];
-        appData.config = parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config || [];
-        appData.sweets = parsedData.Sweets || parsedData.sweets || [];
-        appData.transfers = parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers || [];
+        // THE FIX: Adding normalizeData() back to the ingestion pipeline!
+        appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
+        appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
+        appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
+        appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
+        appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
         processDataEngine();
         render();
@@ -115,7 +124,7 @@ window.callback = function(parsedData) {
 };
 
 function init() {
-    logDebug("App.js (v22 - Native Sheet Adaptation). Injecting JSONP...");
+    logDebug("App.js (v23 - Dictionary Fix). Injecting JSONP...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
