@@ -63,16 +63,25 @@ function logDebug(msg) {
     if (d) { d.style.display = 'block'; d.innerHTML += `> ${msg}<br>`; }
 }
 
-// Data Shock-Absorber (Converts Dictionaries to Arrays)
+// Fixed Normalizer: Accurately parses flat dictionary key-value pairs
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
     if (Array.isArray(data)) return data;
-    if (typeof data === 'object') return Object.keys(data).map(k => ({ ...data[k], _key: k }));
+    if (typeof data === 'object') {
+        return Object.keys(data).map(k => {
+            const val = data[k];
+            // If the value is another object, just attach the key
+            if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+                return { ...val, _key: k };
+            }
+            // If it's a flat dictionary (e.g. "Mexico": "Connie"), manually set Team and Owner headers
+            return { Team: k, Owner: val, _key: k, _value: val };
+        });
+    }
     return [];
 }
 
-// Intelligent Column Mapping
 function findKey(obj, keywords) {
     if (!obj || typeof obj !== 'object') return undefined;
     let keys = Object.keys(obj);
@@ -102,21 +111,36 @@ function getStandardName(name) {
     return map[n.toLowerCase()] || n;
 }
 
-// JSONP ENTRY POINT
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V23 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V24 Payload Intercepted!</span>");
     try {
-        // THE FIX: Adding normalizeData() back to the ingestion pipeline!
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
         appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
+        // --- DETAILED DATA LOAD CHECKS ---
+        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
+        
+        logDebug(`CONFIG TAB: ${appData.config.length > 0 ? "✅ " + appData.config.length + " rows" : "❌ EMPTY"}`);
+        if(appData.config.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.config[0])}`);
+
+        logDebug(`FIXTURES TAB: ${appData.fixtures.length > 0 ? "✅ " + appData.fixtures.length + " rows" : "❌ EMPTY"}`);
+        if(appData.fixtures.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.fixtures[0])}`);
+
+        logDebug(`SCORES TAB: ${appData.scores.length > 0 ? "✅ " + appData.scores.length + " rows" : "❌ EMPTY"}`);
+        if(appData.scores.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.scores[0])}`);
+
+        logDebug(`SWEETS TAB: ${appData.sweets.length > 0 ? "✅ " + appData.sweets.length + " rows" : "❌ EMPTY"}`);
+        if(appData.sweets.length > 0) logDebug(`↳ Row 0: ${JSON.stringify(appData.sweets[0])}`);
+
+        logDebug("<span style='color:cyan;'>------------------------</span>");
+
         processDataEngine();
         render();
         
-        logDebug(`<strong>✅ MAPPED DATA:</strong> ${Object.keys(teamStats).length} Teams, ${Object.keys(matchTeamsMap).length} Fixtures.`);
+        logDebug(`<strong>✅ ENGINE COMPLETE:</strong> Mapped ${Object.keys(teamStats).length} Teams, ${Object.keys(matchTeamsMap).length} Fixtures.`);
         document.getElementById('sync-status').innerText = `Data Live! Loaded ${Object.keys(teamStats).length} Teams.`;
     } catch(e) {
         logDebug(`<span style='color:red;'>PARSE ERROR: ${e.message}</span>`);
@@ -124,7 +148,7 @@ window.callback = function(parsedData) {
 };
 
 function init() {
-    logDebug("App.js (v23 - Dictionary Fix). Injecting JSONP...");
+    logDebug("App.js (v24 - Deep Diagnostics). Injecting JSONP...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
@@ -138,10 +162,10 @@ function init() {
 function processDataEngine() {
     teamStats = {}; familyStats = {}; eliminatedTeams = new Set(); matchTeamsMap = {}; 
     
-    // 1. Configs
+    // 1. Configs (With fallback keys explicitly checked)
     appData.config.forEach(c => {
-        let teamName = getStandardName(findKey(c, ['team', 'country', 'nation']));
-        let ownerName = findKey(c, ['owner', 'member', 'person', 'name', 'family']);
+        let teamName = getStandardName(findKey(c, ['team', 'country', 'nation', '_key']));
+        let ownerName = findKey(c, ['owner', 'member', 'person', 'name', 'family', '_value']);
         if(teamName) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "" };
             if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
@@ -150,8 +174,8 @@ function processDataEngine() {
 
     // 2. Sweets 
     appData.sweets.forEach(s => {
-        let member = findKey(s, ['member', 'name', 'owner', 'person']);
-        let taken = findKey(s, ['awarded', 'sweets', 'taken']);
+        let member = findKey(s, ['member', 'name', 'owner', 'person', '_key']);
+        let taken = findKey(s, ['awarded', 'sweets', 'taken', '_value']);
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
