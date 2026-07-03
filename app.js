@@ -1,6 +1,6 @@
 window.addEventListener('error', function(e) {
     const d = document.getElementById('debug-console');
-    if(d) { d.style.display = 'block'; d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
+    if(d) { d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
 });
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
@@ -34,7 +34,7 @@ const KO_PATHS = [
 
 const FLAGS = {
     "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
-    "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia & Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
+    "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia and Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
     "Brazil":"🇧🇷", "Morocco":"🇲🇦", "Australia":"🇦🇺", "Turkiye":"🇹🇷",
     "Germany":"🇩🇪", "Ivory Coast":"🇨🇮", "Ecuador":"🇪🇨", "Curacao":"🇨🇼",
     "Netherlands":"🇳🇱", "Japan":"🇯🇵", "Sweden":"🇸🇪", "Tunisia":"🇹🇳",
@@ -47,12 +47,14 @@ const FLAGS = {
     "England":"🇬🇧", "Scotland":"🇬🇧" 
 };
 
-// Case-Insensitive Flag Matcher
+// V31 Bulletproof Regex Scrubber for Flags
 function getFlag(team) {
-    if(!team) return "🏁";
-    let tLower = team.toLowerCase().trim();
+    if(!team || team === "TBD") return "🏁";
+    // Strip everything except a-z to guarantee a match regardless of spaces or & symbols
+    let tClean = team.toLowerCase().replace(/[^a-z]/g, '');
     for(let key in FLAGS) {
-        if(key.toLowerCase() === tLower) return FLAGS[key];
+        let keyClean = key.toLowerCase().replace(/[^a-z]/g, '');
+        if(keyClean === tClean) return FLAGS[key];
     }
     return "🏁";
 }
@@ -60,7 +62,6 @@ function getFlag(team) {
 function getStandardName(name) {
     if (!name) return "";
     let n = name.toString().trim();
-    // Protect bracket placeholders (1A, 2B, etc.) but allow 'USA' to normalize
     if (/^[1-3][A-L]$/i.test(n)) return n.toUpperCase(); 
     
     const lowerN = n.toLowerCase();
@@ -75,7 +76,8 @@ function getStandardName(name) {
 }
 
 function formatTeam(teamName, includeOwner = true) {
-    if (!teamName || teamName === "TBD") return "TBD";
+    if (!teamName || teamName === "TBD") return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:5px;"><span style="font-size:18px;">🏁</span><strong>TBD</strong></span>`;
+    
     const actualTeam = groupRankings[teamName] || teamName;
     const owner = teamStats[actualTeam] ? teamStats[actualTeam].owner : "?";
     
@@ -103,6 +105,11 @@ function show(id) {
     }
 }
 
+function logDebug(msg) {
+    const d = document.getElementById('debug-console');
+    if (d) { d.innerHTML += `> ${msg}<br>`; }
+}
+
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
@@ -122,6 +129,7 @@ function findKey(obj, keywords) {
 }
 
 window.callback = function(parsedData) {
+    logDebug("<span style='color:lime;'>SUCCESS: V31 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -129,6 +137,12 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
+        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
+        logDebug(`CONFIG TAB: ${appData.config.length} rows.`);
+        logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows.`);
+        logDebug(`SCORES TAB: ${appData.scores.length} rows.`);
+        logDebug("<span style='color:cyan;'>------------------------</span>");
+
         processDataEngine();
         document.getElementById('sync-status').innerText = `Data Live!`;
     } catch(e) { console.error(e); }
@@ -176,7 +190,6 @@ async function saveScore(matchId) {
     }
 }
 
-// FULLY FUNCTIONAL TRANSFER EXECUTION
 async function executeTransfer() {
     const sel1 = document.getElementById('transfer-team-1');
     const sel2 = document.getElementById('transfer-team-2');
@@ -186,7 +199,6 @@ async function executeTransfer() {
     if(!t1 || !t2 || t1 === t2) { alert("Please select two different teams."); return; }
     
     const p1 = teamStats[t1].owner; const p2 = teamStats[t2].owner;
-    
     if(!confirm(`Trade ${t1} (${p1}) for ${t2} (${p2})?`)) return;
     
     btn.innerText = "SWAPPING...";
@@ -200,7 +212,6 @@ async function executeTransfer() {
             body: JSON.stringify({ action: 'transfer', t1: t1, p1: p1, t2: t2, p2: p2 })
         });
         
-        // Update Local State for immediate UI refresh
         let c1 = appData.config.find(c => getStandardName(c.Team || c.team || c._key) === t1);
         let c2 = appData.config.find(c => getStandardName(c.Team || c.team || c._key) === t2);
         if(c1) { c1.Owner = p2; c1._value = p2; }
@@ -548,7 +559,6 @@ function renderTeams() {
 function renderTransfers() {
     const div = document.getElementById('history-data');
     
-    // Build active team options
     let teamOptions = `<option value="">-- Select Team --</option>`;
     let sortedTeams = Object.keys(teamStats).sort((a,b) => teamStats[a].owner.localeCompare(teamStats[b].owner));
     sortedTeams.forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
