@@ -30,6 +30,8 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
+const WC_TEAMS = new Set(["mexico", "south africa", "south korea", "korea republic", "czechia", "canada", "bosnia and herzegovina", "bosnia & herzegovina", "paraguay", "united states", "usa", "qatar", "switzerland", "brazil", "morocco", "haiti", "scotland", "australia", "turkiye", "türkiye", "germany", "curacao", "curaçao", "netherlands", "japan", "ivory coast", "côte d'ivoire", "ecuador", "sweden", "tunisia", "spain", "cape verde", "cabo verde", "belgium", "egypt", "saudi arabia", "uruguay", "iran", "ir iran", "new zealand", "france", "senegal", "iraq", "norway", "argentina", "algeria", "austria", "jordan", "portugal", "dr congo", "congo dr", "england", "croatia", "ghana", "panama", "uzbekistan", "colombia"]);
+
 function formatTeam(teamName) {
     if (!teamName || teamName === "TBD") return "TBD";
     const owner = teamStats[teamName] ? teamStats[teamName].owner : "?";
@@ -54,7 +56,6 @@ function normalizeData(data) {
     return [];
 }
 
-// BULLETPROOF FINDER: Searches for a string, if it fails, grabs by Column Index
 function findVal(obj, searchStrings, fallbackIndex) {
     if (!obj) return "";
     if (Array.isArray(obj)) {
@@ -89,9 +90,8 @@ function getStandardName(name) {
     return map[n.toLowerCase()] || n;
 }
 
-// JSONP ENTRY POINT
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V20 JSONP Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V21 Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -99,23 +99,27 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
+        // CRITICAL DEBUG: Print the exact shape of row 0 so we have absolute proof if it fails
+        if(appData.config.length > 0) logDebug(`🔍 RAW CONFIG[0]: ${JSON.stringify(appData.config[0])}`);
+        if(appData.scores.length > 0) logDebug(`🔍 RAW SCORES[0]: ${JSON.stringify(appData.scores[0])}`);
+
         processDataEngine();
         render();
         
         logDebug(`<strong>✅ MAPPED DATA:</strong> ${Object.keys(teamStats).length} Teams, ${Object.keys(matchTeamsMap).length} Fixtures.`);
         document.getElementById('sync-status').innerText = `Data Live! Loaded ${Object.keys(teamStats).length} Teams.`;
     } catch(e) {
-        logDebug(`<span style='color:red;'>JSONP PARSE ERROR: ${e.message}</span>`);
+        logDebug(`<span style='color:red;'>PARSE ERROR: ${e.message}</span>`);
     }
 };
 
 function init() {
-    logDebug("App.js (v20 - Security Warning Cleared). Injecting Script...");
+    logDebug("App.js (v21). Injecting JSONP...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
     script.onerror = function() {
-        logDebug("<span style='color:red;'>🚨 SCRIPT LOAD FAILED: Network error.</span>");
+        logDebug("<span style='color:red;'>🚨 SCRIPT LOAD FAILED</span>");
         document.getElementById('sync-status').innerText = "Network Error.";
     };
     document.body.appendChild(script);
@@ -124,18 +128,28 @@ function init() {
 function processDataEngine() {
     teamStats = {}; familyStats = {}; eliminatedTeams = new Set(); matchTeamsMap = {}; 
     
-    // 1. Configs (Positional: 0=Team, 1=Owner)
+    // 1. CONFIGS (AI Heuristic Search)
     appData.config.forEach((c, i) => {
         if (Array.isArray(c) && i === 0) return;
-        let teamName = getStandardName(findVal(c, ["team", "country", "squad", "nation"], 0));
-        let ownerName = findVal(c, ["owner", "name", "familymember", "person", "member"], 1);
+        let teamName = "";
+        let ownerName = "";
+        
+        Object.values(c).forEach(v => {
+            let s = String(v).trim();
+            if (WC_TEAMS.has(s.toLowerCase())) {
+                teamName = getStandardName(s);
+            } else if (s && !/^\d+$/.test(s) && !s.toLowerCase().includes("team") && !s.toLowerCase().includes("owner")) {
+                if (!ownerName) ownerName = s; // Grabs the first non-team, non-number string
+            }
+        });
+
         if(teamName) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "" };
             if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
         }
     });
 
-    // 2. Sweets (Positional: 0=Name, 1=Taken)
+    // 2. Sweets 
     appData.sweets.forEach((s, i) => {
         if (Array.isArray(s) && i === 0) return;
         let member = findVal(s, ["member", "name", "owner", "person"], 0);
@@ -143,7 +157,7 @@ function processDataEngine() {
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
-    // 3. Fixtures (Positional: 0=Stage, 1=Date, 2=Team1, 3=Team2, 4=MatchID)
+    // 3. Fixtures (Unchanged, worked perfectly last time)
     appData.fixtures.forEach((f, i) => {
         if (Array.isArray(f) && i === 0) return;
         let mId = parseInt(findVal(f, ["match", "id", "matchno"], 4));
@@ -159,25 +173,46 @@ function processDataEngine() {
         if(mId && t1 && t2) matchTeamsMap[mId] = { h: getStandardName(t1), a: getStandardName(t2) };
     });
 
-    // 4. Scores (Positional: 0=MatchID, 1=Home, 2=Away) -> FIXED ZERO BUG
+    // 4. Scores (Mathematical Heuristic to beat Zero Bug)
     appData.scores.forEach((match, i) => {
         if (Array.isArray(match) && (i === 0 || String(match[0]).toLowerCase().includes('id'))) return;
         
-        let mId = parseInt(findVal(match, ["matchid", "match", "id"], 0));
-        let hG_raw = findVal(match, ["homescore", "home", "hg", "score1"], 1);
-        let aG_raw = findVal(match, ["awayscore", "away", "ag", "score2"], 2);
-        let pHome = findVal(match, ["penaltieshome", "penhome"], 3);
-        let pAway = findVal(match, ["penaltiesaway", "penaway"], 4);
+        // Extract all valid numbers from the row
+        let nums = [];
+        Object.values(match).forEach(v => {
+            let s = String(v).trim();
+            if (/^\d+$/.test(s)) nums.push(parseInt(s, 10));
+        });
 
-        if (!mId || hG_raw == null || hG_raw === "" || aG_raw == null || aG_raw === "") return;
+        // We know Match IDs are exactly 1 through 104
+        let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
+        
+        let mId, hG, aG, pHome=0, pAway=0;
+        if (mIdIndex !== -1 && nums.length >= mIdIndex + 3) {
+            // Found mathematically
+            mId = nums[mIdIndex];
+            hG = nums[mIdIndex + 1];
+            aG = nums[mIdIndex + 2];
+            if (nums.length > mIdIndex + 3) pHome = nums[mIdIndex + 3];
+            if (nums.length > mIdIndex + 4) pAway = nums[mIdIndex + 4];
+        } else {
+            // Fallback to strict column matching
+            mId = parseInt(findVal(match, ["matchid", "match", "id"], 0));
+            let hG_raw = findVal(match, ["homescore", "home", "hg", "score1"], 1);
+            let aG_raw = findVal(match, ["awayscore", "away", "ag", "score2"], 2);
+            if (hG_raw === "" || aG_raw === "") return;
+            hG = parseInt(hG_raw);
+            aG = parseInt(aG_raw);
+            pHome = parseInt(findVal(match, ["penaltieshome", "penhome"], 3)) || 0;
+            pAway = parseInt(findVal(match, ["penaltiesaway", "penaway"], 4)) || 0;
+        }
+
+        if (!mId || isNaN(hG) || isNaN(aG)) return;
         
         let tMap = matchTeamsMap[mId];
         if (!tMap) return; 
         
         let h = tMap.h, a = tMap.a;
-        let hG = parseInt(hG_raw), aG = parseInt(aG_raw);
-        if (isNaN(hG) || isNaN(aG)) return;
-
         if(teamStats[h]) { teamStats[h].pld++; teamStats[h].gf += hG; teamStats[h].ga += aG; teamStats[h].gd = teamStats[h].gf - teamStats[h].ga; }
         if(teamStats[a]) { teamStats[a].pld++; teamStats[a].gf += aG; teamStats[a].ga += hG; teamStats[a].gd = teamStats[a].gf - teamStats[a].ga; }
 
@@ -194,7 +229,7 @@ function processDataEngine() {
             }
         } else {
             let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 103 ? 25 : 50;                     
-            let winner = (hG > aG || (parseInt(pHome)||0) > (parseInt(pAway)||0)) ? h : a;
+            let winner = (hG > aG || pHome > pAway) ? h : a;
             let loser = winner === h ? a : h;
             if(teamStats[winner]) teamStats[winner].pts += ptsAwarded;
             if(loser) eliminatedTeams.add(loser); 
@@ -266,13 +301,29 @@ function renderFixtures() {
         let scoreText = "v";
         const score = appData.scores.find((s, si) => {
             if(Array.isArray(s) && si===0) return false;
+            
+            let nums = [];
+            Object.values(s).forEach(v => { if (/^\d+$/.test(String(v).trim())) nums.push(parseInt(v, 10)); });
+            let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
+            if (mIdIndex !== -1) return nums[mIdIndex] === mId;
             return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === mId;
         });
 
         if (score) {
-            let hG = findVal(score, ["homescore", "home", "hg", "score1"], 1);
-            let aG = findVal(score, ["awayscore", "away", "ag", "score2"], 2);
-            if (hG != null && hG !== "" && aG != null && aG !== "") {
+            let nums = [];
+            Object.values(score).forEach(v => { if (/^\d+$/.test(String(v).trim())) nums.push(parseInt(v, 10)); });
+            let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
+            
+            let hG, aG;
+            if (mIdIndex !== -1 && nums.length >= mIdIndex + 3) {
+                hG = nums[mIdIndex + 1];
+                aG = nums[mIdIndex + 2];
+            } else {
+                hG = findVal(score, ["homescore", "home", "hg", "score1"], 1);
+                aG = findVal(score, ["awayscore", "away", "ag", "score2"], 2);
+            }
+            
+            if (hG !== undefined && hG !== "" && aG !== undefined && aG !== "") {
                 scoreText = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold;">${hG} - ${aG}</span>`;
             }
         }
@@ -289,80 +340,4 @@ function renderBracket() {
 
     KO_PATHS.forEach(path => {
         const score = appData.scores.find((s, i) => {
-            if(Array.isArray(s) && i===0) return false;
-            return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === path.id;
-        });
-        if (score && path.next) {
-            const hG = parseInt(findVal(score, ["homescore", "home", "hg", "score1"], 1)); 
-            const aG = parseInt(findVal(score, ["awayscore", "away", "ag", "score2"], 2));
-            const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
-            if (winner) {
-                if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
-                if (path.isHome) activeMatches[path.next].h = winner;
-                else activeMatches[path.next].a = winner;
-            }
-        }
-    });
-
-    let html = "";
-    rounds.forEach(r => {
-        html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
-        KO_PATHS.filter(p => p.r === r.key).forEach(p => {
-            const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
-            const score = appData.scores.find((s, i) => {
-                if(Array.isArray(s) && i===0) return false;
-                return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === p.id;
-            });
-            let hG = score ? findVal(score, ["homescore", "home", "hg", "score1"], 1) : null;
-            let aG = score ? findVal(score, ["awayscore", "away", "ag", "score2"], 2) : null;
-            hG = (hG == null || hG === "") ? "-" : hG;
-            aG = (aG == null || aG === "") ? "-" : aG;
-
-            html += `<div class="match-card">
-                <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${formatTeam(matchData.h)}<span class="score-box">${hG}</span></div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">${formatTeam(matchData.a)}<span class="score-box">${aG}</span></div>
-            </div>`;
-        });
-        html += `</div>`;
-    });
-    div.innerHTML = html;
-}
-
-function renderTeams() {
-    const div = document.getElementById('team-tables');
-    let html = "";
-    Object.keys(familyStats).forEach(owner => {
-        html += `<h3>${owner}'s Squad</h3><div class="squad-list">`;
-        Object.keys(teamStats).filter(t => teamStats[t].owner === owner).forEach(team => {
-            const isOut = eliminatedTeams.has(team) ? "eliminated" : "";
-            html += `<div class="squad-card ${isOut}"><span>${formatTeam(team)}</span><span class="points">${teamStats[team].pts} Pts</span></div>`;
-        });
-        html += `</div>`;
-    });
-    div.innerHTML = html;
-}
-
-function renderTransfers() {
-    const div = document.getElementById('history-data');
-    let teamOptions = `<option value="">-- Select Team --</option>`;
-    Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
-    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button></div>`;
-    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
-    if(!appData.transfers || appData.transfers.length === 0) {
-        html += `<tr><td colspan="3">No previous transfers recorded.</td></tr>`;
-    } else {
-        appData.transfers.forEach((t, i) => { 
-            if (Array.isArray(t) && i === 0) return;
-            const d = findVal(t, ["timestamp", "date"], 0);
-            const p1 = findVal(t, ["person1", "member1"], 1);
-            const t1 = findVal(t, ["team1"], 2);
-            const p2 = findVal(t, ["person2", "member2"], 3);
-            const t2 = findVal(t, ["team2"], 4);
-            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${formatTeam(t2)}</td><td>${p2} gets ${formatTeam(t1)}</td></tr>`; 
-        });
-    }
-    div.innerHTML = html + `</table></div>`;
-}
-
-init();
+            if(Array.isArray(s) && i===0) return false
