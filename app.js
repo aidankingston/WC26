@@ -30,12 +30,28 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-const WC_TEAMS = new Set(["mexico", "south africa", "south korea", "korea republic", "czechia", "canada", "bosnia and herzegovina", "bosnia & herzegovina", "paraguay", "united states", "usa", "qatar", "switzerland", "brazil", "morocco", "haiti", "scotland", "australia", "turkiye", "türkiye", "germany", "curacao", "curaçao", "netherlands", "japan", "ivory coast", "côte d'ivoire", "ecuador", "sweden", "tunisia", "spain", "cape verde", "cabo verde", "belgium", "egypt", "saudi arabia", "uruguay", "iran", "ir iran", "new zealand", "france", "senegal", "iraq", "norway", "argentina", "algeria", "austria", "jordan", "portugal", "dr congo", "congo dr", "england", "croatia", "ghana", "panama", "uzbekistan", "colombia"]);
+// Safe Emoji Dictionary (No Zero-Width Joiners to prevent Editor Security Warnings)
+const FLAGS = {
+    "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
+    "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia & Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
+    "Brazil":"🇧🇷", "Morocco":"🇲🇦", "Australia":"🇦🇺", "Turkiye":"🇹🇷",
+    "Germany":"🇩🇪", "Ivory Coast":"🇨🇮", "Ecuador":"🇪🇨", "Curacao":"🇨🇼",
+    "Netherlands":"🇳🇱", "Japan":"🇯🇵", "Sweden":"🇸🇪", "Tunisia":"🇹🇳",
+    "Belgium":"🇧🇪", "Egypt":"🇪🇬", "Iran":"🇮🇷", "New Zealand":"🇳🇿",
+    "Spain":"🇪🇸", "Cape Verde":"🇨🇻", "Saudi Arabia":"🇸🇦", "Uruguay":"🇺🇾",
+    "France":"🇫🇷", "Norway":"🇳🇴", "Senegal":"🇸🇳", "Iraq":"🇮🇶",
+    "Argentina":"🇦🇷", "Austria":"🇦🇹", "Algeria":"🇩🇿", "Jordan":"🇯🇴",
+    "Colombia":"🇨🇴", "Portugal":"🇵🇹", "DR Congo":"🇨🇩", "Uzbekistan":"🇺🇿",
+    "Panama":"🇵🇦", "Haiti":"🇭🇹", "Ghana":"🇬🇭", "Croatia":"🇭🇷", "United States":"🇺🇸",
+    "England":"🇬🇧", "Scotland":"🇬🇧" // Replaced with standard UK flag for code safety
+};
+
+function getFlag(team) { return FLAGS[team] || "🏁"; }
 
 function formatTeam(teamName) {
     if (!teamName || teamName === "TBD") return "TBD";
     const owner = teamStats[teamName] ? teamStats[teamName].owner : "?";
-    return `<span style="white-space:nowrap;"><strong>${teamName}</strong> <span style="font-size:0.8em; color:#666; font-weight:normal;">(${owner})</span></span>`;
+    return `<span style="white-space:nowrap;">${getFlag(teamName)} <strong>${teamName}</strong> <span style="font-size:0.8em; color:#666; font-weight:normal;">(${owner})</span></span>`;
 }
 
 function show(id) {
@@ -46,36 +62,24 @@ function show(id) {
 function logDebug(msg) {
     const d = document.getElementById('debug-console');
     if (d) { d.style.display = 'block'; d.innerHTML += `> ${msg}<br>`; }
-    console.log("DEBUG:", msg);
 }
 
-function normalizeData(data) {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    if (typeof data === 'object') return Object.keys(data).map(k => ({ ...data[k], _key: k }));
-    return [];
-}
-
-function findVal(obj, searchStrings, fallbackIndex) {
-    if (!obj) return "";
-    if (Array.isArray(obj)) {
-        for (let s of searchStrings) { if (typeof s === 'number' && obj[s] !== undefined) return obj[s]; }
-        return fallbackIndex !== undefined ? obj[fallbackIndex] : "";
+// Adapts exactly to your column headers
+function findKey(obj, keywords) {
+    if (!obj || typeof obj !== 'object') return undefined;
+    let keys = Object.keys(obj);
+    
+    for (let kw of keywords) {
+        let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let exactMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKw);
+        if (exactMatch) return obj[exactMatch];
     }
-    for (let k of Object.keys(obj)) {
-        let cleanK = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
-        for (let s of searchStrings) {
-            if (typeof s === 'string') {
-                let cleanS = s.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (cleanK.includes(cleanS)) return obj[k];
-            }
-        }
+    for (let kw of keywords) {
+        let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let partialMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanKw));
+        if (partialMatch) return obj[partialMatch];
     }
-    if (fallbackIndex !== undefined) {
-        let keys = Object.keys(obj);
-        if (keys[fallbackIndex]) return obj[keys[fallbackIndex]];
-    }
-    return obj._key || obj._value || "";
+    return undefined;
 }
 
 function getStandardName(name) {
@@ -90,19 +94,16 @@ function getStandardName(name) {
     return map[n.toLowerCase()] || n;
 }
 
+// JSONP ENTRY
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V21 Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V22 Payload Intercepted!</span>");
     try {
-        appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
-        appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
-        appData.config = normalizeData(parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config);
-        appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
-        appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
+        appData.scores = parsedData.Scores || parsedData.scores || [];
+        appData.fixtures = parsedData.Fixtures || parsedData.fixtures || [];
+        appData.config = parsedData.Owners || parsedData.owners || parsedData.Config || parsedData.config || [];
+        appData.sweets = parsedData.Sweets || parsedData.sweets || [];
+        appData.transfers = parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers || [];
         
-        // CRITICAL DEBUG: Print the exact shape of row 0 so we have absolute proof if it fails
-        if(appData.config.length > 0) logDebug(`🔍 RAW CONFIG[0]: ${JSON.stringify(appData.config[0])}`);
-        if(appData.scores.length > 0) logDebug(`🔍 RAW SCORES[0]: ${JSON.stringify(appData.scores[0])}`);
-
         processDataEngine();
         render();
         
@@ -114,7 +115,7 @@ window.callback = function(parsedData) {
 };
 
 function init() {
-    logDebug("App.js (v21). Injecting JSONP...");
+    logDebug("App.js (v22 - Native Sheet Adaptation). Injecting JSONP...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet (JSONP)...";
     const script = document.createElement('script');
     script.src = SCRIPT_URL + "?action=getAll";
@@ -128,21 +129,10 @@ function init() {
 function processDataEngine() {
     teamStats = {}; familyStats = {}; eliminatedTeams = new Set(); matchTeamsMap = {}; 
     
-    // 1. CONFIGS (AI Heuristic Search)
-    appData.config.forEach((c, i) => {
-        if (Array.isArray(c) && i === 0) return;
-        let teamName = "";
-        let ownerName = "";
-        
-        Object.values(c).forEach(v => {
-            let s = String(v).trim();
-            if (WC_TEAMS.has(s.toLowerCase())) {
-                teamName = getStandardName(s);
-            } else if (s && !/^\d+$/.test(s) && !s.toLowerCase().includes("team") && !s.toLowerCase().includes("owner")) {
-                if (!ownerName) ownerName = s; // Grabs the first non-team, non-number string
-            }
-        });
-
+    // 1. Configs
+    appData.config.forEach(c => {
+        let teamName = getStandardName(findKey(c, ['team', 'country', 'nation']));
+        let ownerName = findKey(c, ['owner', 'member', 'person', 'name', 'family']);
         if(teamName) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "" };
             if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
@@ -150,69 +140,44 @@ function processDataEngine() {
     });
 
     // 2. Sweets 
-    appData.sweets.forEach((s, i) => {
-        if (Array.isArray(s) && i === 0) return;
-        let member = findVal(s, ["member", "name", "owner", "person"], 0);
-        let taken = findVal(s, ["awarded", "sweetstaken", "taken", "sweets"], 1);
+    appData.sweets.forEach(s => {
+        let member = findKey(s, ['member', 'name', 'owner', 'person']);
+        let taken = findKey(s, ['awarded', 'sweets', 'taken']);
         if (member && familyStats[member]) familyStats[member].sweetsTaken = parseInt(taken) || 0;
     });
 
-    // 3. Fixtures (Unchanged, worked perfectly last time)
-    appData.fixtures.forEach((f, i) => {
-        if (Array.isArray(f) && i === 0) return;
-        let mId = parseInt(findVal(f, ["match", "id", "matchno"], 4));
-        let stage = findVal(f, ["stage", "round", "group"], 0);
-        let t1 = findVal(f, ["team1", "home", "hometeam"], 2);
-        let t2 = findVal(f, ["team2", "away", "awayteam"], 3);
+    // 3. Fixtures 
+    appData.fixtures.forEach(f => {
+        let mId = parseInt(findKey(f, ['match', 'id']));
+        let stage = findKey(f, ['stage', 'round', 'group']);
+        let t1 = getStandardName(findKey(f, ['team1', 'home']));
+        let t2 = getStandardName(findKey(f, ['team2', 'away']));
 
         if (stage && String(stage).toLowerCase().includes("group")) {
             let grp = String(stage).trim();
-            if (teamStats[getStandardName(t1)]) teamStats[getStandardName(t1)].group = grp;
-            if (teamStats[getStandardName(t2)]) teamStats[getStandardName(t2)].group = grp;
+            if (teamStats[t1]) teamStats[t1].group = grp;
+            if (teamStats[t2]) teamStats[t2].group = grp;
         }
-        if(mId && t1 && t2) matchTeamsMap[mId] = { h: getStandardName(t1), a: getStandardName(t2) };
+        if(mId && t1 && t2) matchTeamsMap[mId] = { h: t1, a: t2 };
     });
 
-    // 4. Scores (Mathematical Heuristic to beat Zero Bug)
-    appData.scores.forEach((match, i) => {
-        if (Array.isArray(match) && (i === 0 || String(match[0]).toLowerCase().includes('id'))) return;
-        
-        // Extract all valid numbers from the row
-        let nums = [];
-        Object.values(match).forEach(v => {
-            let s = String(v).trim();
-            if (/^\d+$/.test(s)) nums.push(parseInt(s, 10));
-        });
+    // 4. Scores 
+    appData.scores.forEach(match => {
+        let mId = parseInt(findKey(match, ['match', 'id']));
+        let hG_raw = findKey(match, ['homescore', 'team1score', 'score1', 'hg']);
+        let aG_raw = findKey(match, ['awayscore', 'team2score', 'score2', 'ag']);
+        let pHome = parseInt(findKey(match, ['homepen', 'team1pen', 'penhome'])) || 0;
+        let pAway = parseInt(findKey(match, ['awaypen', 'team2pen', 'penaway'])) || 0;
 
-        // We know Match IDs are exactly 1 through 104
-        let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
-        
-        let mId, hG, aG, pHome=0, pAway=0;
-        if (mIdIndex !== -1 && nums.length >= mIdIndex + 3) {
-            // Found mathematically
-            mId = nums[mIdIndex];
-            hG = nums[mIdIndex + 1];
-            aG = nums[mIdIndex + 2];
-            if (nums.length > mIdIndex + 3) pHome = nums[mIdIndex + 3];
-            if (nums.length > mIdIndex + 4) pAway = nums[mIdIndex + 4];
-        } else {
-            // Fallback to strict column matching
-            mId = parseInt(findVal(match, ["matchid", "match", "id"], 0));
-            let hG_raw = findVal(match, ["homescore", "home", "hg", "score1"], 1);
-            let aG_raw = findVal(match, ["awayscore", "away", "ag", "score2"], 2);
-            if (hG_raw === "" || aG_raw === "") return;
-            hG = parseInt(hG_raw);
-            aG = parseInt(aG_raw);
-            pHome = parseInt(findVal(match, ["penaltieshome", "penhome"], 3)) || 0;
-            pAway = parseInt(findVal(match, ["penaltiesaway", "penaway"], 4)) || 0;
-        }
-
-        if (!mId || isNaN(hG) || isNaN(aG)) return;
+        if (!mId || hG_raw === undefined || hG_raw === "" || aG_raw === undefined || aG_raw === "") return;
         
         let tMap = matchTeamsMap[mId];
         if (!tMap) return; 
         
         let h = tMap.h, a = tMap.a;
+        let hG = parseInt(hG_raw), aG = parseInt(aG_raw);
+        if (isNaN(hG) || isNaN(aG)) return;
+
         if(teamStats[h]) { teamStats[h].pld++; teamStats[h].gf += hG; teamStats[h].ga += aG; teamStats[h].gd = teamStats[h].gf - teamStats[h].ga; }
         if(teamStats[a]) { teamStats[a].pld++; teamStats[a].gf += aG; teamStats[a].ga += hG; teamStats[a].gd = teamStats[a].gf - teamStats[a].ga; }
 
@@ -288,41 +253,20 @@ function renderFixtures() {
     const div = document.getElementById('fixtures-data');
     let html = `<div class="table-container"><table><tr><th>M#</th><th>Stage</th><th>Matchup</th></tr>`;
     
-    appData.fixtures.forEach((f, i) => {
-        if (Array.isArray(f) && i===0) return;
-        
-        let mId = parseInt(findVal(f, ["match", "id", "matchno"], 4));
+    appData.fixtures.forEach(f => {
+        let mId = parseInt(findKey(f, ['match', 'id']));
         if(!mId) return;
         
-        let stage = findVal(f, ["stage", "round", "group"], 0);
-        let t1 = getStandardName(findVal(f, ["team1", "home", "hometeam"], 2));
-        let t2 = getStandardName(findVal(f, ["team2", "away", "awayteam"], 3));
+        let stage = findKey(f, ['stage', 'round']);
+        let t1 = getStandardName(findKey(f, ['team1', 'home']));
+        let t2 = getStandardName(findKey(f, ['team2', 'away']));
         
         let scoreText = "v";
-        const score = appData.scores.find((s, si) => {
-            if(Array.isArray(s) && si===0) return false;
-            
-            let nums = [];
-            Object.values(s).forEach(v => { if (/^\d+$/.test(String(v).trim())) nums.push(parseInt(v, 10)); });
-            let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
-            if (mIdIndex !== -1) return nums[mIdIndex] === mId;
-            return parseInt(findVal(s, ["matchid", "match", "id"], 0)) === mId;
-        });
+        const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === mId);
 
         if (score) {
-            let nums = [];
-            Object.values(score).forEach(v => { if (/^\d+$/.test(String(v).trim())) nums.push(parseInt(v, 10)); });
-            let mIdIndex = nums.findIndex(n => n > 0 && n <= 104);
-            
-            let hG, aG;
-            if (mIdIndex !== -1 && nums.length >= mIdIndex + 3) {
-                hG = nums[mIdIndex + 1];
-                aG = nums[mIdIndex + 2];
-            } else {
-                hG = findVal(score, ["homescore", "home", "hg", "score1"], 1);
-                aG = findVal(score, ["awayscore", "away", "ag", "score2"], 2);
-            }
-            
+            let hG = findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
+            let aG = findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
             if (hG !== undefined && hG !== "" && aG !== undefined && aG !== "") {
                 scoreText = `<span style="background:var(--primary);color:white;padding:3px 8px;border-radius:6px; font-weight:bold;">${hG} - ${aG}</span>`;
             }
@@ -339,5 +283,78 @@ function renderBracket() {
     let activeMatches = { ...matchTeamsMap }; 
 
     KO_PATHS.forEach(path => {
-        const score = appData.scores.find((s, i) => {
-            if(Array.isArray(s) && i===0) return false
+        const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === path.id);
+        if (score && path.next) {
+            const hG = parseInt(findKey(score, ['homescore', 'team1score', 'score1', 'hg'])); 
+            const aG = parseInt(findKey(score, ['awayscore', 'team2score', 'score2', 'ag']));
+            const winner = hG > aG ? activeMatches[path.id]?.h : (aG > hG ? activeMatches[path.id]?.a : null); 
+            if (winner) {
+                if (!activeMatches[path.next]) activeMatches[path.next] = {h: "TBD", a: "TBD"};
+                if (path.isHome) activeMatches[path.next].h = winner;
+                else activeMatches[path.next].a = winner;
+            }
+        }
+    });
+
+    let html = "";
+    rounds.forEach(r => {
+        html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
+        KO_PATHS.filter(p => p.r === r.key).forEach(p => {
+            const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
+            const score = appData.scores.find(s => parseInt(findKey(s, ['match', 'id'])) === p.id);
+            
+            let hG = "-", aG = "-";
+            if (score) {
+                let tempH = findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
+                let tempA = findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+                if (tempH !== "" && tempH !== undefined) hG = tempH;
+                if (tempA !== "" && tempA !== undefined) aG = tempA;
+            }
+
+            html += `<div class="match-card">
+                <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${formatTeam(matchData.h)}<span class="score-box">${hG}</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">${formatTeam(matchData.a)}<span class="score-box">${aG}</span></div>
+            </div>`;
+        });
+        html += `</div>`;
+    });
+    div.innerHTML = html;
+}
+
+function renderTeams() {
+    const div = document.getElementById('team-tables');
+    let html = "";
+    Object.keys(familyStats).forEach(owner => {
+        html += `<h3>${owner}'s Squad</h3><div class="squad-list">`;
+        Object.keys(teamStats).filter(t => teamStats[t].owner === owner).forEach(team => {
+            const isOut = eliminatedTeams.has(team) ? "eliminated" : "";
+            html += `<div class="squad-card ${isOut}"><span>${formatTeam(team)}</span><span class="points">${teamStats[team].pts} Pts</span></div>`;
+        });
+        html += `</div>`;
+    });
+    div.innerHTML = html;
+}
+
+function renderTransfers() {
+    const div = document.getElementById('history-data');
+    let teamOptions = `<option value="">-- Select Team --</option>`;
+    Object.keys(teamStats).forEach(t => { teamOptions += `<option value="${t}">${t} (Owned by ${teamStats[t].owner})</option>`; });
+    let html = `<div class="transfer-card"><h3>Execute a Swap</h3><select class="transfer-select">${teamOptions}</select><div style="text-align:center; padding:10px;">🔄</div><select class="transfer-select">${teamOptions}</select><button class="btn-trade" onclick="alert('Trade function ready to link to Apps Script!')">Confirm Transfer</button></div>`;
+    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
+    if(!appData.transfers || appData.transfers.length === 0) {
+        html += `<tr><td colspan="3">No previous transfers recorded.</td></tr>`;
+    } else {
+        appData.transfers.forEach(t => { 
+            const d = findKey(t, ["date", "timestamp"]);
+            const p1 = findKey(t, ["person1", "member1"]);
+            const t1 = findKey(t, ["team1"]);
+            const p2 = findKey(t, ["person2", "member2"]);
+            const t2 = findKey(t, ["team2"]);
+            if(d && p1) html += `<tr><td>${d}</td><td>${p1} gets ${formatTeam(t2)}</td><td>${p2} gets ${formatTeam(t1)}</td></tr>`; 
+        });
+    }
+    div.innerHTML = html + `</table></div>`;
+}
+
+init();
