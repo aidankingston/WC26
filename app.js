@@ -136,8 +136,9 @@ async function saveScore(matchId) {
     let btn = document.getElementById('btn-save-' + matchId);
     let hG = document.getElementById('hg-' + matchId).value;
     let aG = document.getElementById('ag-' + matchId).value;
-    let pHome = document.getElementById('ph-' + matchId) ? document.getElementById('ph-' + matchId).value : "";
-    let pAway = document.getElementById('pa-' + matchId) ? document.getElementById('pa-' + matchId).value : "";
+    let isAet = document.getElementById('aet-' + matchId)?.checked || false;
+    let pHome = document.getElementById('ph-' + matchId)?.value || "";
+    let pAway = document.getElementById('pa-' + matchId)?.value || "";
     
     if(hG === "" || aG === "") { alert("Please enter both scores."); return; }
     
@@ -149,12 +150,12 @@ async function saveScore(matchId) {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'score', matchId: matchId, hG: hG, aG: aG, pHome: pHome, pAway: pAway })
+            body: JSON.stringify({ action: 'score', matchId: matchId, hG: hG, aG: aG, isAet: isAet, pHome: pHome, pAway: pAway })
         });
         
         let existing = appData.scores.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == matchId);
-        if (!existing) appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway });
-        else { existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway; }
+        if (!existing) appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway, aet: isAet });
+        else { existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway; existing.aet = isAet; }
         
         btn.innerText = "SAVED!";
         btn.style.background = "#27ae60";
@@ -218,7 +219,6 @@ async function adjustSweets(member, change) {
     let newVal = current + change;
     if(newVal < 0) newVal = 0;
     
-    // Optimistic UI Update
     familyStats[member].sweetsTaken = newVal;
     document.getElementById(`sweet-val-${member}`).innerText = newVal;
     renderLeaderboard();
@@ -234,8 +234,9 @@ async function adjustSweets(member, change) {
 }
 
 function updateManualScore(matchId, field, value) {
-    if (!manualScores[matchId]) manualScores[matchId] = { hG: "", aG: "", pHome: "", pAway: "" };
-    manualScores[matchId][field] = value;
+    if (!manualScores[matchId]) manualScores[matchId] = { hG: "", aG: "", pHome: "", pAway: "", aet: false };
+    if (field === 'aet') manualScores[matchId][field] = value.checked;
+    else manualScores[matchId][field] = value;
     processDataEngine();
 }
 
@@ -282,8 +283,8 @@ function processDataEngine() {
         let man = manualScores[mId];
         if (man.hG !== "" && man.aG !== "") {
             let existing = processedMatches.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == mId);
-            if (!existing) processedMatches.push({ _key: mId, hS: man.hG, aS: man.aG, pens: man.pHome + "-" + man.pAway });
-            else { existing.hS = man.hG; existing.aS = man.aG; existing.pens = man.pHome + "-" + man.pAway; }
+            if (!existing) processedMatches.push({ _key: mId, hS: man.hG, aS: man.aG, pens: man.pHome + "-" + man.pAway, aet: man.aet });
+            else { existing.hS = man.hG; existing.aS = man.aG; existing.pens = man.pHome + "-" + man.pAway; existing.aet = man.aet; }
         }
     });
 
@@ -327,10 +328,10 @@ function processDataEngine() {
         } else {
             // Knockout Stages (Bypass Group Tables, Inject to Family Leaderboard)
             let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 102 ? 25 : 50;                     
-            let winner = (hG > aG || pHome > pAway) ? h : a;
+            let winner = (hG > aG || pHome > pAway) ? h : (aG > hG || pAway > pHome ? a : null);
             let loser = winner === h ? a : h;
             
-            if(teamStats[winner]) {
+            if(winner && teamStats[winner]) {
                 teamStats[winner].status = tMap.stage;
                 let owner = teamStats[winner].owner;
                 if(familyStats[owner]) {
@@ -342,7 +343,7 @@ function processDataEngine() {
                     familyStats[owner].totalPts += ptsAwarded;
                 }
             }
-            if(teamStats[loser]) { teamStats[loser].status = "Out (" + tMap.stage + ")"; }
+            if(loser && teamStats[loser]) { teamStats[loser].status = "Out (" + tMap.stage + ")"; }
         }
     });
 
@@ -379,7 +380,7 @@ function render(sortedFixtures, processedMatches) {
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
     let html = `<div class="table-container"><table><tr>
-        <th>Member</th><th>Grps</th><th>R32</th><th>R16</th><th>QF</th><th>SF</th><th>Fin</th><th>Pts</th><th>Sweets</th><th>Bal</th>
+        <th style="width:25%;">Member</th><th>Grps</th><th>R32</th><th>R16</th><th>QF</th><th>SF</th><th>Fin</th><th>Pts</th><th>Sweets</th><th>Bal</th>
     </tr>`;
     
     const sorted = Object.entries(familyStats).sort((a, b) => (b[1].totalPts - b[1].sweetsTaken) - (a[1].totalPts - a[1].sweetsTaken));
@@ -398,7 +399,7 @@ function renderLeaderboard() {
                     <button class="sweets-btn" onclick="adjustSweets('${name}', 1)">+</button>
                 </div>
             </td>
-            <td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:900; font-size:16px;">${balance}</td>
+            <td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:900; font-size:14px;">${balance}</td>
         </tr>`;
     });
     div.innerHTML = html + `</table></div>`;
@@ -415,7 +416,7 @@ function renderGroups() {
             if (teamStats[b].gd !== teamStats[a].gd) return teamStats[b].gd - teamStats[a].gd;
             return teamStats[b].gf - teamStats[a].gf;
         });
-        html += `<h4 style="margin:20px 0 5px 0; color:var(--primary);">${g}</h4><div class="table-container"><table><tr><th>Team</th><th>Pld</th><th>GD</th><th>Pts</th></tr>`;
+        html += `<h4 style="margin:20px 0 5px 0; color:var(--primary);">${g}</h4><div class="table-container"><table><tr><th style="width:40%;">Team</th><th>Pld</th><th>GD</th><th>Pts</th></tr>`;
         gTeams.forEach(t => {
             let st = teamStats[t];
             html += `<tr><td>${formatTeam(t, true)}</td><td>${st.pld}</td><td>${st.gd > 0 ? '+'+st.gd : st.gd}</td><td><strong>${st.pts}</strong></td></tr>`;
@@ -443,7 +444,7 @@ function renderFixtures(sortedFixtures, processedMatches) {
             let dObj = new Date(dateRaw);
             dateStr = dObj.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
             timeStr = dObj.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
-            if(timeStr === "00:00" || timeStr.includes("12:00 AM")) timeStr = ""; // Hide placeholder times
+            if(timeStr === "00:00" || timeStr.includes("12:00 AM")) timeStr = ""; 
         }
         
         let t1Raw = getStandardName(findKey(f, ['team1', 'home']));
@@ -456,10 +457,11 @@ function renderFixtures(sortedFixtures, processedMatches) {
         let o2 = teamStats[t2] ? teamStats[t2].owner : "?";
         
         let score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === mId);
-        let man = manualScores[mId] || { hG: "", aG: "", pHome: "", pAway: "" };
+        let man = manualScores[mId] || { hG: "", aG: "", pHome: "", pAway: "", aet: false };
 
         let hG = score && score.hS !== undefined && score.hS !== "" ? score.hS : man.hG;
         let aG = score && score.aS !== undefined && score.aS !== "" ? score.aS : man.aG;
+        let aet = score && score.aet !== undefined ? score.aet : man.aet;
         
         let pHome = man.pHome || ""; let pAway = man.pAway || "";
         if (score) {
@@ -469,33 +471,37 @@ function renderFixtures(sortedFixtures, processedMatches) {
         }
 
         let isNextId = ""; let badgeHtml = "";
-        if (hG === "" && !foundNext) { isNextId = `id="current-match" class="match-row-horizontal next-unplayed-match"`; foundNext = true; badgeHtml = `<span class="next-unplayed-badge">NEXT</span>`; }
-        else { isNextId = `class="match-row-horizontal"`; }
-
-        let penInputs = mId > 72 ? `<input type="number" class="pen-input" id="ph-${mId}" value="${pHome}" placeholder="p" onchange="updateManualScore(${mId}, 'pHome', this.value)"><input type="number" class="pen-input" id="pa-${mId}" value="${pAway}" placeholder="p" onchange="updateManualScore(${mId}, 'pAway', this.value)">` : ``;
+        if (hG === "" && !foundNext) { isNextId = `id="current-match"`; foundNext = true; badgeHtml = `<span style="background:red;color:white;padding:2px 4px;border-radius:3px;">NEXT</span>`; }
+        
+        let knockoutInput = mId > 72 ? `
+            <div class="knockout-controls">
+                <label class="aet-toggle"><input type="checkbox" id="aet-${mId}" ${aet ? 'checked':''} onchange="updateManualScore(${mId}, 'aet', this)"> AET</label>
+                <div class="pen-inputs">
+                    <input type="number" class="pen-input" id="ph-${mId}" value="${pHome}" placeholder="p" onchange="updateManualScore(${mId}, 'pHome', this.value)">
+                    <input type="number" class="pen-input" id="pa-${mId}" value="${pAway}" placeholder="p" onchange="updateManualScore(${mId}, 'pAway', this.value)">
+                </div>
+            </div>` : "";
 
         html += `
-        <div ${isNextId}>
+        <div class="match-row-horizontal" ${isNextId}>
             <div class="match-meta-header">
                 <div><strong>Match ${mId}</strong> | ${dateStr} ${timeStr ? '- '+timeStr : ''}</div>
                 <div>${badgeHtml} ${stage} | ${loc}</div>
             </div>
             <div class="match-teams-container">
                 <div class="team-block home">
-                    <span class="team-flag">${getFlag(t1)}</span>
                     <span class="team-name">${t1}</span>
                     <span class="team-owner">${o1}</span>
                 </div>
                 <div class="score-center">
                     <div class="score-inputs">
                         <input type="number" id="hg-${mId}" class="score-box-input" value="${hG}" onchange="updateManualScore(${mId}, 'hG', this.value)">
-                        <span class="score-dash">-</span>
+                        <span>-</span>
                         <input type="number" id="ag-${mId}" class="score-box-input" value="${aG}" onchange="updateManualScore(${mId}, 'aG', this.value)">
                     </div>
-                    <div class="pen-inputs">${penInputs}</div>
+                    ${knockoutInput}
                 </div>
                 <div class="team-block away">
-                    <span class="team-flag">${getFlag(t2)}</span>
                     <span class="team-name">${t2}</span>
                     <span class="team-owner">${o2}</span>
                 </div>
@@ -554,13 +560,13 @@ function renderBracket(processedMatches) {
             let finalH = groupRankings[matchData.h] || matchData.h;
             let finalA = groupRankings[matchData.a] || matchData.a;
 
-            html += `<div class="match-card">
+            html += `<div class="match-card" style="background:#fff; border-radius:6px; padding:10px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                 <div style="font-size:10px; color:#666; text-align:center; border-bottom:1px solid #eee; padding-bottom:4px; margin-bottom:6px;">Match ${p.id}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    ${formatTeam(finalH, true)} <span class="score-box">${hG}</span>
+                    ${formatTeam(finalH, true)} <span style="font-weight:bold;">${hG}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    ${formatTeam(finalA, true)} <span class="score-box">${aG}</span>
+                    ${formatTeam(finalA, true)} <span style="font-weight:bold;">${aG}</span>
                 </div>
             </div>`;
         });
@@ -576,7 +582,7 @@ function renderTeams() {
     Object.keys(familyStats).forEach(owner => {
         html += `<div class="family-squad-section">
             <h3>${owner}'s Squad</h3>
-            <div class="table-container"><table><tr><th>Team</th><th>Pld</th><th>GD</th><th>Pts</th><th>Status</th></tr>`;
+            <div class="table-container"><table><tr><th style="width:40%;">Team</th><th>Pld</th><th>GD</th><th>Pts</th><th>Status</th></tr>`;
         
         let memberTeams = Object.keys(teamStats).filter(t => teamStats[t].owner === owner).sort((a,b) => teamStats[b].pts - teamStats[a].pts);
         
@@ -588,7 +594,7 @@ function renderTeams() {
                 <td>${st.pld}</td>
                 <td>${st.gd > 0 ? '+'+st.gd : st.gd}</td>
                 <td><strong>${st.pts}</strong></td>
-                <td style="color:${statusColor}; font-size:11px; font-weight:bold;">${st.status}</td>
+                <td style="color:${statusColor}; font-weight:bold;">${st.status}</td>
             </tr>`;
         });
         html += `</table></div></div>`;
@@ -612,7 +618,7 @@ function renderTransfers() {
         <button id="btn-exec-transfer" class="btn-save" onclick="executeTransfer()">Confirm Transfer</button>
     </div>`;
 
-    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th>Date</th><th>Traded</th><th>For</th></tr>`;
+    html += `<h3>Transfer History</h3><div class="table-container"><table><tr><th style="width:20%">Date</th><th style="width:40%">Traded</th><th style="width:40%">For</th></tr>`;
     if(!appData.transfers || appData.transfers.length === 0) {
         html += `<tr><td colspan="3" style="text-align:center;">No previous transfers recorded.</td></tr>`;
     } else {
@@ -622,7 +628,7 @@ function renderTransfers() {
             const t1 = findKey(t, ["team1"]);
             const p2 = findKey(t, ["person2", "member2"]);
             const t2 = findKey(t, ["team2"]);
-            if(d && p1) html += `<tr><td style="font-size:11px;">${d}</td><td><strong>${p1}</strong> gets<br>${formatTeam(t2, false)}</td><td><strong>${p2}</strong> gets<br>${formatTeam(t1, false)}</td></tr>`; 
+            if(d && p1) html += `<tr><td>${d}</td><td><strong>${p1}</strong> gets<br>${formatTeam(t2, false)}</td><td><strong>${p2}</strong> gets<br>${formatTeam(t1, false)}</td></tr>`; 
         });
     }
     div.innerHTML = html + `</table></div>`;
