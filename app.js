@@ -47,21 +47,32 @@ const FLAGS = {
     "England":"🇬🇧", "Scotland":"🇬🇧" 
 };
 
-// V31 Bulletproof Regex Scrubber for Flags
+// V32 Flag Sniffer: Logs exactly what the flag engine receives
+let failedFlags = new Set();
 function getFlag(team) {
     if(!team || team === "TBD") return "🏁";
-    // Strip everything except a-z to guarantee a match regardless of spaces or & symbols
-    let tClean = team.toLowerCase().replace(/[^a-z]/g, '');
+    
+    // Force to string to prevent object crash
+    let tStr = String(team);
+    let tClean = tStr.toLowerCase().replace(/[^a-z]/g, '');
+    
     for(let key in FLAGS) {
         let keyClean = key.toLowerCase().replace(/[^a-z]/g, '');
         if(keyClean === tClean) return FLAGS[key];
     }
+    
+    // Log failures up to 15 unique times
+    if (!failedFlags.has(tClean) && failedFlags.size < 15 && tClean.length > 2) {
+        failedFlags.add(tClean);
+        logDebug(`<span style="color:#ff6b6b;">🚩 FLAG MISSING FOR: "${tStr}" (Cleaned: "${tClean}")</span>`);
+    }
+    
     return "🏁";
 }
 
 function getStandardName(name) {
     if (!name) return "";
-    let n = name.toString().trim();
+    let n = String(name).trim();
     if (/^[1-3][A-L]$/i.test(n)) return n.toUpperCase(); 
     
     const lowerN = n.toLowerCase();
@@ -129,7 +140,7 @@ function findKey(obj, keywords) {
 }
 
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V31 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V32 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
