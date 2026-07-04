@@ -1,4 +1,7 @@
-window.addEventListener('error', function(e) { console.log(e); });
+window.addEventListener('error', function(e) {
+    const d = document.getElementById('debug-console');
+    if(d) { d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
+});
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
 
@@ -111,7 +114,13 @@ function findKey(obj, keywords) {
     return undefined;
 }
 
+function logDebug(msg) {
+    const d = document.getElementById('debug-console');
+    if (d) { d.innerHTML += `> ${msg}<br>`; }
+}
+
 window.callback = function(parsedData) {
+    logDebug("<span style='color:lime;'>SUCCESS: V36.1 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -119,9 +128,18 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
+        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
+        logDebug(`CONFIG TAB: ${appData.config.length} rows.`);
+        logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows.`);
+        logDebug(`SCORES TAB: ${appData.scores.length} rows.`);
+        logDebug("<span style='color:cyan;'>------------------------</span>");
+
         processDataEngine();
         document.getElementById('sync-status').innerText = `Data Live!`;
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        logDebug(`<span style='color:red;'>PARSE ERROR: ${e.message}</span>`);
+        console.error(e); 
+    }
 };
 
 function init() {
@@ -326,7 +344,7 @@ function processDataEngine() {
                 if(teamStats[a]) { teamStats[a].d++; teamStats[a].pts += 1; }
             }
         } else {
-            // Knockout Stages (Bypass Group Tables, Inject to Family Leaderboard)
+            // Knockout Stages
             let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 102 ? 25 : 50;                     
             let winner = (hG > aG || pHome > pAway) ? h : (aG > hG || pAway > pHome ? a : null);
             let loser = winner === h ? a : h;
@@ -361,7 +379,6 @@ function processDataEngine() {
         if(gTeams.length > 2 && teamStats[gTeams[2]].pld > 0) groupRankings["3" + letter] = gTeams[2];
     });
 
-    // Roll up Group Stage points into Family Leaderboard
     Object.keys(teamStats).forEach(team => {
         const owner = teamStats[team].owner;
         if (familyStats[owner]) {
