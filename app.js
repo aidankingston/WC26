@@ -1,7 +1,4 @@
-window.addEventListener('error', function(e) {
-    const d = document.getElementById('debug-console');
-    if(d) { d.innerHTML += `<span style="color:red;">CRITICAL JS ERROR: ${e.message}</span><br>`; }
-});
+window.addEventListener('error', function(e) { console.log(e); });
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJg28FI1maQPvXELfK3kbgM7PNMj-_pQ73w0b11TPkW3jTGdftEhto7OfBu-2Qc5Medg/exec";
 
@@ -9,7 +6,6 @@ let appData = { scores: [], fixtures: [], config: [], sweets: [], transfers: [] 
 let manualScores = {}; 
 let teamStats = {};      
 let familyStats = {};    
-let eliminatedTeams = {};
 let matchTeamsMap = {}; 
 let groupRankings = {};
 
@@ -32,41 +28,26 @@ const KO_PATHS = [
     {id: 104, r: "FINAL", next: null, isHome: null}
 ];
 
-const FLAGS = {
-    "Mexico":"🇲🇽", "South Africa":"🇿🇦", "South Korea":"🇰🇷", "Czechia":"🇨🇿",
-    "Switzerland":"🇨🇭", "Canada":"🇨🇦", "Bosnia and Herzegovina":"🇧🇦", "Qatar":"🇶🇦",
-    "Brazil":"🇧🇷", "Morocco":"🇲🇦", "Australia":"🇦🇺", "Turkiye":"🇹🇷",
-    "Germany":"🇩🇪", "Ivory Coast":"🇨🇮", "Ecuador":"🇪🇨", "Curacao":"🇨🇼",
-    "Netherlands":"🇳🇱", "Japan":"🇯🇵", "Sweden":"🇸🇪", "Tunisia":"🇹🇳",
-    "Belgium":"🇧🇪", "Egypt":"🇪🇬", "Iran":"🇮🇷", "New Zealand":"🇳🇿",
-    "Spain":"🇪🇸", "Cape Verde":"🇨🇻", "Saudi Arabia":"🇸🇦", "Uruguay":"🇺🇾",
-    "France":"🇫🇷", "Norway":"🇳🇴", "Senegal":"🇸🇳", "Iraq":"🇮🇶",
-    "Argentina":"🇦🇷", "Austria":"🇦🇹", "Algeria":"🇩🇿", "Jordan":"🇯🇴",
-    "Colombia":"🇨🇴", "Portugal":"🇵🇹", "DR Congo":"🇨🇩", "Uzbekistan":"🇺🇿",
-    "Panama":"🇵🇦", "Haiti":"🇭🇹", "Ghana":"🇬🇭", "Croatia":"🇭🇷", "United States":"🇺🇸",
-    "England":"🇬🇧", "Scotland":"🇬🇧" 
+const ISO_CODES = {
+    "mexico":"mx", "southafrica":"za", "southkorea":"kr", "czechia":"cz",
+    "switzerland":"ch", "canada":"ca", "bosniaandherzegovina":"ba", "bosniaherzegovina":"ba",
+    "qatar":"qa", "brazil":"br", "morocco":"ma", "australia":"au", "turkiye":"tr",
+    "germany":"de", "ivorycoast":"ci", "ecuador":"ec", "curacao":"cw",
+    "netherlands":"nl", "japan":"jp", "sweden":"se", "tunisia":"tn",
+    "belgium":"be", "egypt":"eg", "iran":"ir", "newzealand":"nz",
+    "spain":"es", "capeverde":"cv", "saudiarabia":"sa", "uruguay":"uy",
+    "france":"fr", "norway":"no", "senegal":"sn", "iraq":"iq",
+    "argentina":"ar", "austria":"at", "algeria":"dz", "jordan":"jo",
+    "colombia":"co", "portugal":"pt", "drcongo":"cd", "uzbekistan":"uz",
+    "panama":"pa", "haiti":"ht", "ghana":"gh", "croatia":"hr", "unitedstates":"us",
+    "england":"gb-eng", "scotland":"gb-sct", "paraguay":"py"
 };
 
-// V32 Flag Sniffer: Logs exactly what the flag engine receives
-let failedFlags = new Set();
 function getFlag(team) {
     if(!team || team === "TBD") return "🏁";
-    
-    // Force to string to prevent object crash
-    let tStr = String(team);
-    let tClean = tStr.toLowerCase().replace(/[^a-z]/g, '');
-    
-    for(let key in FLAGS) {
-        let keyClean = key.toLowerCase().replace(/[^a-z]/g, '');
-        if(keyClean === tClean) return FLAGS[key];
-    }
-    
-    // Log failures up to 15 unique times
-    if (!failedFlags.has(tClean) && failedFlags.size < 15 && tClean.length > 2) {
-        failedFlags.add(tClean);
-        logDebug(`<span style="color:#ff6b6b;">🚩 FLAG MISSING FOR: "${tStr}" (Cleaned: "${tClean}")</span>`);
-    }
-    
+    let tStr = String(team).toLowerCase().replace(/[^a-z]/g, '');
+    let iso = ISO_CODES[tStr];
+    if(iso) return `<img src="https://flagcdn.com/w40/${iso}.png" class="cdn-flag" alt="${team}">`;
     return "🏁";
 }
 
@@ -74,32 +55,28 @@ function getStandardName(name) {
     if (!name) return "";
     let n = String(name).trim();
     if (/^[1-3][A-L]$/i.test(n)) return n.toUpperCase(); 
-    
-    const lowerN = n.toLowerCase();
     const map = {
         "usa": "United States", "korea republic": "South Korea", 
         "bosnia and herzegovina": "Bosnia & Herzegovina", "türkiye": "Turkiye", 
         "côte d'ivoire": "Ivory Coast", "curaçao": "Curacao", "cabo verde": "Cape Verde", 
         "congo dr": "DR Congo", "ir iran": "Iran"
     };
-    if (map[lowerN]) return map[lowerN];
-    return n;
+    return map[n.toLowerCase()] || n;
 }
 
 function formatTeam(teamName, includeOwner = true) {
-    if (!teamName || teamName === "TBD") return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:5px;"><span style="font-size:18px;">🏁</span><strong>TBD</strong></span>`;
-    
+    if (!teamName || teamName === "TBD") return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">🏁 <strong>TBD</strong></span>`;
     const actualTeam = groupRankings[teamName] || teamName;
     const owner = teamStats[actualTeam] ? teamStats[actualTeam].owner : "?";
     
     if (includeOwner) {
-        return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:5px;">
-                    <span style="font-size:18px;">${getFlag(actualTeam)}</span>
+        return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
+                    ${getFlag(actualTeam)}
                     <span><strong>${actualTeam}</strong> <span style="font-size:0.8em; color:#888;">(${owner})</span></span>
                 </span>`;
     }
-    return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:5px;">
-                <span style="font-size:18px;">${getFlag(actualTeam)}</span>
+    return `<span style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
+                ${getFlag(actualTeam)}
                 <strong>${actualTeam}</strong>
             </span>`;
 }
@@ -114,11 +91,6 @@ function show(id) {
             if(el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
         }, 150);
     }
-}
-
-function logDebug(msg) {
-    const d = document.getElementById('debug-console');
-    if (d) { d.innerHTML += `> ${msg}<br>`; }
 }
 
 function normalizeData(data) {
@@ -140,7 +112,6 @@ function findKey(obj, keywords) {
 }
 
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V32 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -148,12 +119,6 @@ window.callback = function(parsedData) {
         appData.sweets = normalizeData(parsedData.Sweets || parsedData.sweets);
         appData.transfers = normalizeData(parsedData.TransferLog || parsedData.transferLog || parsedData.Transfers || parsedData.transfers);
         
-        logDebug("<span style='color:cyan;'>--- DATA LOAD CHECKS ---</span>");
-        logDebug(`CONFIG TAB: ${appData.config.length} rows.`);
-        logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows.`);
-        logDebug(`SCORES TAB: ${appData.scores.length} rows.`);
-        logDebug("<span style='color:cyan;'>------------------------</span>");
-
         processDataEngine();
         document.getElementById('sync-status').innerText = `Data Live!`;
     } catch(e) { console.error(e); }
@@ -247,6 +212,27 @@ async function executeTransfer() {
     }
 }
 
+async function adjustSweets(member, change) {
+    if(!familyStats[member]) return;
+    let current = familyStats[member].sweetsTaken;
+    let newVal = current + change;
+    if(newVal < 0) newVal = 0;
+    
+    // Optimistic UI Update
+    familyStats[member].sweetsTaken = newVal;
+    document.getElementById(`sweet-val-${member}`).innerText = newVal;
+    renderLeaderboard();
+    
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'sweets', member: member, val: newVal })
+        });
+    } catch(e) { console.error("Sweets sync failed."); }
+}
+
 function updateManualScore(matchId, field, value) {
     if (!manualScores[matchId]) manualScores[matchId] = { hG: "", aG: "", pHome: "", pAway: "" };
     manualScores[matchId][field] = value;
@@ -261,7 +247,9 @@ function processDataEngine() {
         let ownerName = c.Owner || c.owner || findKey(c, ['owner']) || c._value;
         if(teamName && teamName.length > 3) {
             teamStats[teamName] = { pld: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, owner: ownerName || "Unassigned", group: "", status: "Active" };
-            if (ownerName && !familyStats[ownerName]) familyStats[ownerName] = { totalPts: 0, sweetsTaken: 0 };
+            if (ownerName && !familyStats[ownerName]) {
+                familyStats[ownerName] = { ptsGroups: 0, ptsR32: 0, ptsR16: 0, ptsQF: 0, ptsSF: 0, ptsFinal: 0, totalPts: 0, sweetsTaken: 0 };
+            }
         }
     });
 
@@ -321,10 +309,11 @@ function processDataEngine() {
         let hG = parseInt(hG_raw), aG = parseInt(aG_raw);
         if (isNaN(hG) || isNaN(aG)) return;
 
-        if(teamStats[h]) { teamStats[h].pld++; teamStats[h].gf += hG; teamStats[h].ga += aG; teamStats[h].gd = teamStats[h].gf - teamStats[h].ga; }
-        if(teamStats[a]) { teamStats[a].pld++; teamStats[a].gf += aG; teamStats[a].ga += hG; teamStats[a].gd = teamStats[a].gf - teamStats[a].ga; }
-
+        // Group Stage Restrictions (1-72)
         if (mId <= 72) {
+            if(teamStats[h]) { teamStats[h].pld++; teamStats[h].gf += hG; teamStats[h].ga += aG; teamStats[h].gd = teamStats[h].gf - teamStats[h].ga; }
+            if(teamStats[a]) { teamStats[a].pld++; teamStats[a].gf += aG; teamStats[a].ga += hG; teamStats[a].gd = teamStats[a].gf - teamStats[a].ga; }
+
             if (hG > aG) {
                 if(teamStats[h]) { teamStats[h].w++; teamStats[h].pts += 3; }
                 if(teamStats[a]) { teamStats[a].l++; }
@@ -336,11 +325,23 @@ function processDataEngine() {
                 if(teamStats[a]) { teamStats[a].d++; teamStats[a].pts += 1; }
             }
         } else {
-            let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 103 ? 25 : 50;                     
+            // Knockout Stages (Bypass Group Tables, Inject to Family Leaderboard)
+            let ptsAwarded = mId <= 88 ? 5 : mId <= 96 ? 7 : mId <= 100 ? 10 : mId <= 102 ? 25 : 50;                     
             let winner = (hG > aG || pHome > pAway) ? h : a;
             let loser = winner === h ? a : h;
             
-            if(teamStats[winner]) { teamStats[winner].pts += ptsAwarded; teamStats[winner].status = tMap.stage; }
+            if(teamStats[winner]) {
+                teamStats[winner].status = tMap.stage;
+                let owner = teamStats[winner].owner;
+                if(familyStats[owner]) {
+                    if(mId <= 88) familyStats[owner].ptsR32 += ptsAwarded;
+                    else if(mId <= 96) familyStats[owner].ptsR16 += ptsAwarded;
+                    else if(mId <= 100) familyStats[owner].ptsQF += ptsAwarded;
+                    else if(mId <= 102) familyStats[owner].ptsSF += ptsAwarded;
+                    else familyStats[owner].ptsFinal += ptsAwarded;
+                    familyStats[owner].totalPts += ptsAwarded;
+                }
+            }
             if(teamStats[loser]) { teamStats[loser].status = "Out (" + tMap.stage + ")"; }
         }
     });
@@ -359,9 +360,13 @@ function processDataEngine() {
         if(gTeams.length > 2 && teamStats[gTeams[2]].pld > 0) groupRankings["3" + letter] = gTeams[2];
     });
 
+    // Roll up Group Stage points into Family Leaderboard
     Object.keys(teamStats).forEach(team => {
         const owner = teamStats[team].owner;
-        if (familyStats[owner]) familyStats[owner].totalPts += teamStats[team].pts;
+        if (familyStats[owner]) {
+            familyStats[owner].ptsGroups += teamStats[team].pts;
+            familyStats[owner].totalPts += teamStats[team].pts;
+        }
     });
 
     render(sortedFixtures, processedMatches);
@@ -373,11 +378,28 @@ function render(sortedFixtures, processedMatches) {
 
 function renderLeaderboard() {
     const div = document.getElementById('leaderboard-data');
-    let html = `<div class="table-container"><table><tr><th>Member</th><th>Pts Earned</th><th>Sweets</th><th>Balance</th></tr>`;
+    let html = `<div class="table-container"><table><tr>
+        <th>Member</th><th>Grps</th><th>R32</th><th>R16</th><th>QF</th><th>SF</th><th>Fin</th><th>Pts</th><th>Sweets</th><th>Bal</th>
+    </tr>`;
+    
     const sorted = Object.entries(familyStats).sort((a, b) => (b[1].totalPts - b[1].sweetsTaken) - (a[1].totalPts - a[1].sweetsTaken));
+    
     sorted.forEach(([name, stats]) => {
         const balance = stats.totalPts - stats.sweetsTaken;
-        html += `<tr><td><strong>${name}</strong></td><td>${stats.totalPts}</td><td>${stats.sweetsTaken}</td><td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:900; font-size:16px;">${balance}</td></tr>`;
+        html += `<tr>
+            <td><strong>${name}</strong></td>
+            <td>${stats.ptsGroups}</td><td>${stats.ptsR32}</td><td>${stats.ptsR16}</td>
+            <td>${stats.ptsQF}</td><td>${stats.ptsSF}</td><td>${stats.ptsFinal}</td>
+            <td style="font-weight:bold;">${stats.totalPts}</td>
+            <td>
+                <div class="sweets-ctrl">
+                    <button class="sweets-btn" onclick="adjustSweets('${name}', -1)">-</button>
+                    <span id="sweet-val-${name}" style="min-width:15px; display:inline-block; text-align:center;">${stats.sweetsTaken}</span>
+                    <button class="sweets-btn" onclick="adjustSweets('${name}', 1)">+</button>
+                </div>
+            </td>
+            <td style="color:${balance > 0 ? 'green' : (balance < 0 ? 'red' : 'inherit')}; font-weight:900; font-size:16px;">${balance}</td>
+        </tr>`;
     });
     div.innerHTML = html + `</table></div>`;
 }
@@ -415,7 +437,14 @@ function renderFixtures(sortedFixtures, processedMatches) {
         let stage = findKey(f, ['stage', 'round']) || "";
         let loc = findKey(f, ['location', 'venue', 'stadium']) || "";
         let dateRaw = findKey(f, ['date']);
-        let dateStr = dateRaw ? new Date(dateRaw).toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}) : "";
+        
+        let dateStr = ""; let timeStr = "";
+        if (dateRaw) {
+            let dObj = new Date(dateRaw);
+            dateStr = dObj.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+            timeStr = dObj.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+            if(timeStr === "00:00" || timeStr.includes("12:00 AM")) timeStr = ""; // Hide placeholder times
+        }
         
         let t1Raw = getStandardName(findKey(f, ['team1', 'home']));
         let t2Raw = getStandardName(findKey(f, ['team2', 'away']));
@@ -448,7 +477,7 @@ function renderFixtures(sortedFixtures, processedMatches) {
         html += `
         <div ${isNextId}>
             <div class="match-meta-header">
-                <div><strong>Match ${mId}</strong> | ${dateStr}</div>
+                <div><strong>Match ${mId}</strong> | ${dateStr} ${timeStr ? '- '+timeStr : ''}</div>
                 <div>${badgeHtml} ${stage} | ${loc}</div>
             </div>
             <div class="match-teams-container">
