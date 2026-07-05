@@ -96,6 +96,11 @@ function show(id) {
     }
 }
 
+function logDebug(msg) {
+    const d = document.getElementById('debug-console');
+    if (d) { d.innerHTML += `> ${msg}<br>`; }
+}
+
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
@@ -114,13 +119,8 @@ function findKey(obj, keywords) {
     return undefined;
 }
 
-function logDebug(msg) {
-    const d = document.getElementById('debug-console');
-    if (d) { d.innerHTML += `> ${msg}<br>`; }
-}
-
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V36.1 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V37 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -143,10 +143,22 @@ window.callback = function(parsedData) {
 };
 
 function init() {
+    logDebug("Firing network request to Google Apps Script...");
     document.getElementById('sync-status').innerText = "Downloading Google Sheet...";
     const script = document.createElement('script');
-    script.src = SCRIPT_URL + "?action=getAll";
-    script.onerror = () => { document.getElementById('sync-status').innerText = "Network Error."; };
+    
+    // Add cache buster to force a fresh request
+    script.src = SCRIPT_URL + "?action=getAll&nocache=" + new Date().getTime();
+    
+    script.onload = () => { logDebug("Network request complete. Awaiting JSONP execution..."); };
+    script.onerror = () => { 
+        logDebug("<span style='color:red;'>🚨 FATAL ERROR: The Google Apps Script refused to load!</span>");
+        logDebug("<span style='color:#ffa502;'>Checklist to fix this:</span>");
+        logDebug("<span style='color:#ffa502;'>1. Ensure your original <strong>doGet(e)</strong> function wasn't deleted from your Apps Script.</span>");
+        logDebug("<span style='color:#ffa502;'>2. Go to Extensions > Apps Script, click <strong>Deploy > Manage Deployments > Edit (Pencil Icon) > Create New Version</strong>.</span>");
+        document.getElementById('sync-status').innerText = "Network Error."; 
+    };
+    
     document.body.appendChild(script);
 }
 
