@@ -96,11 +96,6 @@ function show(id) {
     }
 }
 
-function logDebug(msg) {
-    const d = document.getElementById('debug-console');
-    if (d) { d.innerHTML += `> ${msg}<br>`; }
-}
-
 function normalizeData(data) {
     if (!data) return [];
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) { return []; } }
@@ -109,18 +104,33 @@ function normalizeData(data) {
     return [];
 }
 
+// V38: Upgraded Smart Key Finder (handles partial matches like "Match ID" perfectly)
 function findKey(obj, keywords) {
     if (!obj || typeof obj !== 'object') return undefined;
     let keys = Object.keys(obj);
+    
+    // 1. Try Exact Matches first (safest)
     for (let kw of keywords) {
         let exactMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === kw.toLowerCase().replace(/[^a-z0-9]/g, ''));
         if (exactMatch) return obj[exactMatch];
     }
+    
+    // 2. Try Partial Matches (handles "Match ID", "Home Score", etc.)
+    for (let kw of keywords) {
+        let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let partialMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanKw));
+        if (partialMatch) return obj[partialMatch];
+    }
     return undefined;
 }
 
+function logDebug(msg) {
+    const d = document.getElementById('debug-console');
+    if (d) { d.innerHTML += `> ${msg}<br>`; }
+}
+
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V37 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V38 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -132,6 +142,12 @@ window.callback = function(parsedData) {
         logDebug(`CONFIG TAB: ${appData.config.length} rows.`);
         logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows.`);
         logDebug(`SCORES TAB: ${appData.scores.length} rows.`);
+        
+        // Output Row 0 to verify the column headers being passed
+        if(appData.scores.length > 0) {
+            logDebug(`SCORES ROW 0 HEADERS SEEN: ${JSON.stringify(Object.keys(appData.scores[0]))}`);
+        }
+        
         logDebug("<span style='color:cyan;'>------------------------</span>");
 
         processDataEngine();
@@ -147,15 +163,11 @@ function init() {
     document.getElementById('sync-status').innerText = "Downloading Google Sheet...";
     const script = document.createElement('script');
     
-    // Add cache buster to force a fresh request
     script.src = SCRIPT_URL + "?action=getAll&nocache=" + new Date().getTime();
     
     script.onload = () => { logDebug("Network request complete. Awaiting JSONP execution..."); };
     script.onerror = () => { 
         logDebug("<span style='color:red;'>🚨 FATAL ERROR: The Google Apps Script refused to load!</span>");
-        logDebug("<span style='color:#ffa502;'>Checklist to fix this:</span>");
-        logDebug("<span style='color:#ffa502;'>1. Ensure your original <strong>doGet(e)</strong> function wasn't deleted from your Apps Script.</span>");
-        logDebug("<span style='color:#ffa502;'>2. Go to Extensions > Apps Script, click <strong>Deploy > Manage Deployments > Edit (Pencil Icon) > Create New Version</strong>.</span>");
         document.getElementById('sync-status').innerText = "Network Error."; 
     };
     
@@ -183,7 +195,8 @@ async function saveScore(matchId) {
             body: JSON.stringify({ action: 'score', matchId: matchId, hG: hG, aG: aG, isAet: isAet, pHome: pHome, pAway: pAway })
         });
         
-        let existing = appData.scores.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == matchId);
+        // Find existing match key in our expanded array
+        let existing = appData.scores.find(m => parseInt(m._key || findKey(m, ['matchid', 'match', 'id'])) == matchId);
         if (!existing) appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway, aet: isAet });
         else { existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway; existing.aet = isAet; }
         
@@ -293,10 +306,10 @@ function processDataEngine() {
     let sortedFixtures = [...appData.fixtures].sort((a, b) => new Date(findKey(a, ['date']) || 0) - new Date(findKey(b, ['date']) || 0));
 
     sortedFixtures.forEach(f => {
-        let mId = parseInt(findKey(f, ['match', 'id']));
+        let mId = parseInt(findKey(f, ['matchid', 'match', 'id']));
         let stage = findKey(f, ['stage', 'round', 'group']);
-        let t1 = getStandardName(findKey(f, ['team1', 'home']));
-        let t2 = getStandardName(findKey(f, ['team2', 'away']));
+        let t1 = getStandardName(findKey(f, ['hometeam', 'team1', 'home']));
+        let t2 = getStandardName(findKey(f, ['awayteam', 'team2', 'away']));
 
         if (stage && String(stage).toLowerCase().includes("group")) {
             let grp = String(stage).trim();
@@ -312,20 +325,20 @@ function processDataEngine() {
     Object.keys(manualScores).forEach(mId => {
         let man = manualScores[mId];
         if (man.hG !== "" && man.aG !== "") {
-            let existing = processedMatches.find(m => parseInt(m._key || findKey(m, ['match', 'id'])) == mId);
+            let existing = processedMatches.find(m => parseInt(m._key || findKey(m, ['matchid', 'match', 'id'])) == mId);
             if (!existing) processedMatches.push({ _key: mId, hS: man.hG, aS: man.aG, pens: man.pHome + "-" + man.pAway, aet: man.aet });
             else { existing.hS = man.hG; existing.aS = man.aG; existing.pens = man.pHome + "-" + man.pAway; existing.aet = man.aet; }
         }
     });
 
     processedMatches.forEach(match => {
-        let mId = parseInt(match._key || findKey(match, ['match', 'id']));
-        let hG_raw = match.hS !== undefined ? match.hS : findKey(match, ['homescore', 'hg']);
-        let aG_raw = match.aS !== undefined ? match.aS : findKey(match, ['awayscore', 'ag']);
+        let mId = parseInt(match._key || findKey(match, ['matchid', 'match', 'id']));
+        let hG_raw = match.hS !== undefined ? match.hS : findKey(match, ['homescore', 'score1', 'hg', 'home']);
+        let aG_raw = match.aS !== undefined ? match.aS : findKey(match, ['awayscore', 'score2', 'ag', 'away']);
         
         let pensStr = String(match.pens || "");
-        let pHome = parseInt(findKey(match, ['penaltieshome', 'homepen', 'penhome'])) || 0;
-        let pAway = parseInt(findKey(match, ['penaltiesaway', 'awaypen', 'penaway'])) || 0;
+        let pHome = parseInt(findKey(match, ['penaltieshome', 'homepen', 'penhome', 'ph'])) || 0;
+        let pAway = parseInt(findKey(match, ['penaltiesaway', 'awaypen', 'penaway', 'pa'])) || 0;
         if (pensStr.includes('-')) { let parts = pensStr.split('-'); pHome = parseInt(parts[0])||0; pAway = parseInt(parts[1])||0; }
 
         if (!mId || hG_raw === "" || aG_raw === "" || hG_raw == null || aG_raw == null) return;
@@ -461,7 +474,7 @@ function renderFixtures(sortedFixtures, processedMatches) {
     let foundNext = false;
     
     sortedFixtures.forEach(f => {
-        let mId = parseInt(findKey(f, ['match', 'id']));
+        let mId = parseInt(findKey(f, ['matchid', 'match', 'id']));
         if(!mId) return;
         
         let stage = findKey(f, ['stage', 'round']) || "";
@@ -476,8 +489,8 @@ function renderFixtures(sortedFixtures, processedMatches) {
             if(timeStr === "00:00" || timeStr.includes("12:00 AM")) timeStr = ""; 
         }
         
-        let t1Raw = getStandardName(findKey(f, ['team1', 'home']));
-        let t2Raw = getStandardName(findKey(f, ['team2', 'away']));
+        let t1Raw = getStandardName(findKey(f, ['hometeam', 'team1', 'home']));
+        let t2Raw = getStandardName(findKey(f, ['awayteam', 'team2', 'away']));
         
         let t1 = groupRankings[t1Raw] || t1Raw;
         let t2 = groupRankings[t2Raw] || t2Raw;
@@ -485,7 +498,7 @@ function renderFixtures(sortedFixtures, processedMatches) {
         let o1 = teamStats[t1] ? teamStats[t1].owner : "?";
         let o2 = teamStats[t2] ? teamStats[t2].owner : "?";
         
-        let score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === mId);
+        let score = processedMatches.find(s => parseInt(s._key || findKey(s, ['matchid', 'match', 'id'])) === mId);
         let man = manualScores[mId] || { hG: "", aG: "", pHome: "", pAway: "", aet: false };
 
         let hG = score && score.hS !== undefined && score.hS !== "" ? score.hS : man.hG;
@@ -496,7 +509,7 @@ function renderFixtures(sortedFixtures, processedMatches) {
         if (score) {
             let pensStr = String(score.pens || "");
             if (pensStr.includes('-')) { let pts = pensStr.split('-'); pHome = pts[0]; pAway = pts[1]; }
-            else { pHome = findKey(score, ['penaltieshome', 'homepen', 'penhome']) || pHome; pAway = findKey(score, ['penaltiesaway', 'awaypen', 'penaway']) || pAway; }
+            else { pHome = findKey(score, ['penaltieshome', 'homepen', 'penhome', 'ph']) || pHome; pAway = findKey(score, ['penaltiesaway', 'awaypen', 'penaway', 'pa']) || pAway; }
         }
 
         let isNextId = ""; let badgeHtml = "";
@@ -547,10 +560,10 @@ function renderBracket(processedMatches) {
     let activeMatches = { ...matchTeamsMap }; 
 
     KO_PATHS.forEach(path => {
-        const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === path.id);
+        const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['matchid', 'match', 'id'])) === path.id);
         if (score && path.next) {
-            let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
-            let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+            let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'score1', 'hg']);
+            let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'score2', 'ag']);
             const hG = parseInt(tempH); const aG = parseInt(tempA);
             
             let pensStr = String(score.pens || "");
@@ -576,12 +589,12 @@ function renderBracket(processedMatches) {
         html += `<div class="bracket-round"><div class="round-title">${r.title}</div>`;
         KO_PATHS.filter(p => p.r === r.key).forEach(p => {
             const matchData = activeMatches[p.id] || {h: "TBD", a: "TBD"};
-            const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['match', 'id'])) === p.id);
+            const score = processedMatches.find(s => parseInt(s._key || findKey(s, ['matchid', 'match', 'id'])) === p.id);
             
             let hG = "-", aG = "-";
             if (score) {
-                let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'team1score', 'score1', 'hg']);
-                let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'team2score', 'score2', 'ag']);
+                let tempH = score.hS !== undefined ? score.hS : findKey(score, ['homescore', 'score1', 'hg']);
+                let tempA = score.aS !== undefined ? score.aS : findKey(score, ['awayscore', 'score2', 'ag']);
                 if (tempH !== "" && tempH !== undefined) hG = tempH;
                 if (tempA !== "" && tempA !== undefined) aG = tempA;
             }
