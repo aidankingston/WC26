@@ -9,18 +9,15 @@
         body { background-color: #f4f7f6; font-family: -apple-system, sans-serif; }
         .header { background: linear-gradient(135deg, #003366, #00509e); color: white; padding: 15px; text-align: center; font-weight: bold; }
         
-        /* 2-Row Navigation */
         .nav-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 10px; background: #003366; }
         .nav-btn { background: rgba(255,255,255,0.1); color: white; border-radius: 8px; padding: 10px 5px; text-align: center; font-size: 11px; cursor: pointer; }
 
-        /* Perfect Alignment Tables */
         .table-container { overflow-x: auto; background: white; border-radius: 8px; margin: 10px 0; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 10px 5px; text-align: center; border-bottom: 1px solid #eee; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
         th { font-size: 10px; text-transform: uppercase; color: #666; background-color: #f1f5f9; }
         table td:first-child, table th:first-child { text-align: left; }
         
-        /* Match Entry Layout */
         .match-row-horizontal { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 5px solid var(--primary); }
         .match-meta-header { display: flex; justify-content: space-between; font-size: 11px; color: #555; text-transform: uppercase; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
         .match-teams-container { display: flex; justify-content: space-between; align-items: center; width: 100%; }
@@ -55,7 +52,7 @@
     <div class="header" onclick="show('home')">WORLD Cup 2026™</div>
     
     <div id="debug-console" style="display:block; background:#111; color:#0f0; padding:15px; margin:10px auto; max-width:900px; font-family:monospace; font-size:12px; border-radius:8px; overflow-x:auto; max-height: 250px; overflow-y: auto; text-align:left; line-height:1.5; border: 2px solid #0f0;">
-        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS - V36.1]</strong><br>
+        <strong style="color:#fff;">[SYSTEM DIAGNOSTICS - V37]</strong><br>
     </div>
     
     <div id="screen-home" class="screen active">
@@ -85,6 +82,6 @@
         <div class="nav-btn" onclick="show('teams')">👥 Squads</div>
         <div class="nav-btn" onclick="show('transfers')">🔄 Transfers</div>
     </nav>
-    <script src="app.js?v=36.1"></script>
+    <script src="app.js?v=37"></script>
 </body>
 </html>
