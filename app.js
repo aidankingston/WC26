@@ -104,18 +104,15 @@ function normalizeData(data) {
     return [];
 }
 
-// V38: Upgraded Smart Key Finder (handles partial matches like "Match ID" perfectly)
 function findKey(obj, keywords) {
     if (!obj || typeof obj !== 'object') return undefined;
     let keys = Object.keys(obj);
     
-    // 1. Try Exact Matches first (safest)
     for (let kw of keywords) {
         let exactMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === kw.toLowerCase().replace(/[^a-z0-9]/g, ''));
         if (exactMatch) return obj[exactMatch];
     }
     
-    // 2. Try Partial Matches (handles "Match ID", "Home Score", etc.)
     for (let kw of keywords) {
         let cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
         let partialMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanKw));
@@ -130,7 +127,7 @@ function logDebug(msg) {
 }
 
 window.callback = function(parsedData) {
-    logDebug("<span style='color:lime;'>SUCCESS: V38 Payload Intercepted!</span>");
+    logDebug("<span style='color:lime;'>SUCCESS: V39 Payload Intercepted!</span>");
     try {
         appData.scores = normalizeData(parsedData.Scores || parsedData.scores);
         appData.fixtures = normalizeData(parsedData.Fixtures || parsedData.fixtures);
@@ -142,12 +139,6 @@ window.callback = function(parsedData) {
         logDebug(`CONFIG TAB: ${appData.config.length} rows.`);
         logDebug(`FIXTURES TAB: ${appData.fixtures.length} rows.`);
         logDebug(`SCORES TAB: ${appData.scores.length} rows.`);
-        
-        // Output Row 0 to verify the column headers being passed
-        if(appData.scores.length > 0) {
-            logDebug(`SCORES ROW 0 HEADERS SEEN: ${JSON.stringify(Object.keys(appData.scores[0]))}`);
-        }
-        
         logDebug("<span style='color:cyan;'>------------------------</span>");
 
         processDataEngine();
@@ -195,7 +186,6 @@ async function saveScore(matchId) {
             body: JSON.stringify({ action: 'score', matchId: matchId, hG: hG, aG: aG, isAet: isAet, pHome: pHome, pAway: pAway })
         });
         
-        // Find existing match key in our expanded array
         let existing = appData.scores.find(m => parseInt(m._key || findKey(m, ['matchid', 'match', 'id'])) == matchId);
         if (!existing) appData.scores.push({ _key: matchId, hS: hG, aS: aG, pens: pHome + "-" + pAway, aet: isAet });
         else { existing.hS = hG; existing.aS = aG; existing.pens = pHome + "-" + pAway; existing.aet = isAet; }
@@ -501,15 +491,24 @@ function renderFixtures(sortedFixtures, processedMatches) {
         let score = processedMatches.find(s => parseInt(s._key || findKey(s, ['matchid', 'match', 'id'])) === mId);
         let man = manualScores[mId] || { hG: "", aG: "", pHome: "", pAway: "", aet: false };
 
-        let hG = score && score.hS !== undefined && score.hS !== "" ? score.hS : man.hG;
-        let aG = score && score.aS !== undefined && score.aS !== "" ? score.aS : man.aG;
-        let aet = score && score.aet !== undefined ? score.aet : man.aet;
+        // EXTRACT CORRECTLY FROM SHEET DATA OR MANUAL STATE
+        let s_hG = score ? findKey(score, ['homescore', 'score1', 'hg', 'home']) : "";
+        let s_aG = score ? findKey(score, ['awayscore', 'score2', 'ag', 'away']) : "";
+        let s_aet = score ? findKey(score, ['aet', 'extratime']) : false;
+        
+        let hG = score && score.hS !== undefined && score.hS !== "" ? score.hS : (s_hG !== undefined && s_hG !== "" ? s_hG : man.hG);
+        let aG = score && score.aS !== undefined && score.aS !== "" ? score.aS : (s_aG !== undefined && s_aG !== "" ? s_aG : man.aG);
+        let aet = score && score.aet !== undefined ? score.aet : (s_aet === "Yes" || s_aet === true || s_aet === "TRUE" ? true : man.aet);
         
         let pHome = man.pHome || ""; let pAway = man.pAway || "";
         if (score) {
             let pensStr = String(score.pens || "");
-            if (pensStr.includes('-')) { let pts = pensStr.split('-'); pHome = pts[0]; pAway = pts[1]; }
-            else { pHome = findKey(score, ['penaltieshome', 'homepen', 'penhome', 'ph']) || pHome; pAway = findKey(score, ['penaltiesaway', 'awaypen', 'penaway', 'pa']) || pAway; }
+            if (pensStr.includes('-')) { 
+                let pts = pensStr.split('-'); pHome = pts[0]; pAway = pts[1]; 
+            } else { 
+                pHome = findKey(score, ['penaltieshome', 'homepen', 'penhome', 'ph']) || pHome; 
+                pAway = findKey(score, ['penaltiesaway', 'awaypen', 'penaway', 'pa']) || pAway; 
+            }
         }
 
         let isNextId = ""; let badgeHtml = "";
